@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DataCraft</title>
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <button class="btn ghost nav-toggle" id="nav-toggle" aria-label="Show or hide the sidebar">☰</button>
+    <button class="brand" id="brand" title="Overview"><span class="brand-grid" aria-hidden="true"><i></i><i></i><i></i><i></i></span>DataCraft</button>
+    <nav class="menubar" id="menubar" aria-label="Main menu"></nav>
+    <span class="project-name" id="project-name"></span>
+    <button class="btn theme-btn" id="theme-btn" type="button" aria-label="Switch between light and dark" title="Switch between light and dark"></button>
+  </header>
+  <aside class="sidebar" id="sidebar">
+    <div id="nav"></div>
+    <div class="sidebar-foot">
+      <span class="small muted" id="save-status"></span>
+      <div class="inline">
+        <button class="btn ghost sm" id="settings-btn">Settings</button>
+        <button class="btn ghost sm" id="close-btn">Close project</button>
+      </div>
+    </div>
+  </aside>
+  <main class="main" id="main"></main>
+</div>
+
+<script src="lib/sql-asm.js"></script>
+<script src="lib/papaparse.min.js"></script>
+<script src="js/util.js"></script>
+<script src="js/store.js"></script>
+<script src="js/db.js"></script>
+<script src="js/tables.js"></script>
+<script src="js/dataio.js"></script>
+<script src="js/pages.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

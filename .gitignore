@@ -1,0 +1,7 @@
+# Your own databases and generated sites stay on this computer
+projects/*
+!projects/.gitkeep
+php/sites/*
+!php/sites/.gitkeep
+php/config.php
+*.bak
