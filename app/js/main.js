@@ -329,13 +329,15 @@
       { label: 'Import a MySQL .sql file…', run: () => DC.importMysqlDialog() },
       '-',
       { label: 'SQL console…', run: () => DC.sqlConsole(), disabled: needP },
+      '-',
+      { label: 'Make a PHP website…', run: () => DC.phpSiteDialog(), disabled: needP },
     ], () => DC.devMode()],
     ['Help', [
       { label: 'Getting started', run: helpStart },
       { label: () => (DC.devMode() ? 'Turn off developer mode' : 'Turn on developer mode'), run: toggleDevMode },
       { label: 'About DataCraft', run: () => DC.modal({ title: 'About DataCraft', actions: [{ label: 'Close', primary: true }], body: [
-        h('p', null, h('b', null, 'DataCraft'), ' · version 0.2'),
-        h('p', null, 'Tables, categories, text import, CSV export and printable pages, stored as SQLite databases. Developer mode adds MySQL .sql export and import and an SQL console.'),
+        h('p', null, h('b', null, 'DataCraft'), ' · version 0.3'),
+        h('p', null, 'Tables, categories, text import, CSV export and printable pages, stored as SQLite databases. Developer mode adds MySQL .sql export and import, an SQL console and a PHP website maker.'),
         h('p', { class: 'muted' }, 'Built with sql.js (SQLite, MIT licence) and Papa Parse (MIT licence).')] }) },
     ]],
   ];
@@ -346,7 +348,7 @@
       h('h3', null, '3. Link tables'), h('p', null, 'A “Link to another table” field connects records, such as an invoice line to its invoice, or an invoice to its customer. Calculated fields work things out, like [Quantity] * [Unit price].'),
       h('h3', null, '4. Design pages'), h('p', null, 'Pages › New page builds a starting layout. Type fixed text and {Field names} in text boxes, add a table for line items, then Preview and Print. In the print window you can choose “Save as PDF”.'),
       h('h3', null, '5. Export'), h('p', null, 'Export CSV saves into your project’s exports folder, ready for Excel or another program.'),
-      h('h3', null, '6. Developer mode'), h('p', null, 'Help › Turn on developer mode adds a Developer menu: export your tables as a MySQL .sql file (for phpMyAdmin or a web host), import .sql files made by phpMyAdmin or mysqldump, and run SQL commands.')) });
+      h('h3', null, '6. Developer mode'), h('p', null, 'Help › Turn on developer mode adds a Developer menu: export your tables as a MySQL .sql file (for phpMyAdmin or a web host), import .sql files made by phpMyAdmin or mysqldump, run SQL commands, and make a PHP website (log in, list, search, add, edit) to upload to your web host.')) });
   }
   function toggleDevMode() {
     const on = !DC.devMode();

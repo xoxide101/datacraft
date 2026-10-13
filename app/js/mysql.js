@@ -43,7 +43,7 @@
       case 'date': return 'DATE';
       case 'yesno': return 'TINYINT(1)';
       case 'link': return 'INT UNSIGNED';
-      case 'category': return st.maxLen > 255 ? 'TEXT' : st.maxLen > 100 ? 'VARCHAR(255)' : 'VARCHAR(100)';
+      case 'category': return st.maxLen > 255 ? 'TEXT' : 'VARCHAR(255)';
       default: return st.maxLen > 255 ? 'TEXT' : 'VARCHAR(255)';
     }
   }
@@ -529,7 +529,10 @@
       else out += ` ${m[3]} `;
       while (pos < s.length && /\s/.test(s[pos])) pos++;
     }
-    out = out.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').replace(/\((\[[^\]]+\]|\d+(?:\.\d+)?)\)/g, '$1').trim();
+    out = out.replace(/\s+/g, ' ').replace(/\( /g, '(').replace(/ \)/g, ')').trim();
+    for (let k = 0; k < 10 && /\((\[[^\]]+\]|\d+(?:\.\d+)?)\)/.test(out); k++) out = out.replace(/\((\[[^\]]+\]|\d+(?:\.\d+)?)\)/g, '$1');
+    // MySQL wraps whole expressions in brackets: ((a * b) - c) becomes (a * b) - c
+    while (out.startsWith('(') && closeParen(out, 0) === out.length - 1) out = out.slice(1, -1).trim();
     try { DC.compileFormula(out); return out; } catch (e) { return null; }
   }
   const SAFE_NAME = /^[A-Za-z_][\w$]*$/;
@@ -788,5 +791,5 @@
     m.el.classList.add('xl');
   }
 
-  Object.assign(DC, { exportMysqlDialog, importMysqlDialog, sqlConsole, _mysql: { buildMysql, parseDump, importDump, splitSql, formulaSql, genToFormula } });
+  Object.assign(DC, { exportMysqlDialog, importMysqlDialog, sqlConsole, _mysql: { buildMysql, parseDump, importDump, splitSql, formulaSql, genToFormula, keyColumn, myType, colStats } });
 })(window.DC);

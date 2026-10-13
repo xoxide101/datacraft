@@ -13,8 +13,10 @@ projects\<name>\         One folder per project:
                            It is a standard SQLite database, so other tools
                            (for example "DB Browser for SQLite") can open it too.
     imports\               Copies of the text/CSV files you imported.
-    exports\               CSV files you exported.
-php\sites\<name>\        Generated PHP sites (coming in stage 3).
+    exports\               CSV and .sql files you exported.
+php\sites\<site>\        PHP websites made with Developer > Make a PHP website.
+php\sites\<site>-database.sql   Its tables and records, to import with phpMyAdmin
+                                (keep it on your computer; do not upload it).
 
 Developer mode
 --------------
@@ -28,6 +30,13 @@ Help > Turn on developer mode adds a Developer menu:
                               links, ENUM columns become category lists. Views, triggers,
                               procedures and binary (BLOB) columns are skipped.
   SQL console                 Runs SQLite commands on the open project (saved straight away).
+  Make a PHP website          Writes a small website into php\sites\<site>: log in, then list,
+                              search, filter, add, edit and delete records, download CSV, and
+                              see linked records (an invoice's lines). PHP 7.4+ with PDO MySQL.
+                              config.php (your database password) and assets\custom.css are
+                              written only the first time, never replaced. The first user needs
+                              the setup key shown by DataCraft (also in config.php).
+                              Other browsers get a .zip instead.
 
 Backing up
 ----------
