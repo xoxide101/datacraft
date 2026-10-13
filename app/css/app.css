@@ -46,8 +46,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: v
 .brand-grid { display: grid; grid-template-columns: 7px 7px; gap: 2px; }
 .brand-grid i { width: 7px; height: 7px; border-radius: 1.5px; background: var(--accent); }
 .brand-grid i:nth-child(2), .brand-grid i:nth-child(3) { opacity: .45; }
-.theme-btn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
-.theme-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; }
+.btn.theme-btn { width: 34px; height: 34px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.theme-btn svg { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor; }
 .project-name { margin-left: auto; font-weight: 600; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .nav-toggle { display: none; }
 .sidebar { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; min-height: 0; overflow: auto; }
