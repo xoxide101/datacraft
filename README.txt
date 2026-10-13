@@ -16,6 +16,19 @@ projects\<name>\         One folder per project:
     exports\               CSV files you exported.
 php\sites\<name>\        Generated PHP sites (coming in stage 3).
 
+Developer mode
+--------------
+Help > Turn on developer mode adds a Developer menu:
+  Export for MySQL (.sql)     Saves projects\<name>\exports\<name>-<date>.sql for phpMyAdmin
+                              or "mysql -u USER -p DATABASE < file.sql" (MySQL 5.7+, MariaDB 10.2+).
+                              Category lists go in a dc_categories table; calculated fields
+                              become generated columns; links can become foreign keys.
+  Import a MySQL .sql file    Reads tables and records from phpMyAdmin / mysqldump / DataCraft
+                              .sql files, into this project or a new one. Foreign keys become
+                              links, ENUM columns become category lists. Views, triggers,
+                              procedures and binary (BLOB) columns are skipped.
+  SQL console                 Runs SQLite commands on the open project (saved straight away).
+
 Backing up
 ----------
 Copy the projects folder. Each project's .db file holds all of its data.

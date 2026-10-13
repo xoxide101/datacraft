@@ -50,17 +50,26 @@
     Object.entries(patch).forEach(([k, v]) => run('INSERT OR REPLACE INTO _dc_settings (key, value) VALUES (?, ?)', [k, String(v)]));
     loadSettings(); changed();
   }
-  // Tables made by other programs get metadata so they can be browsed (used when opening any .db file).
+  // Tables and columns made by other programs (or the SQL console) get metadata so they can be browsed,
+  // and metadata for tables or columns that are gone is removed. Runs when any .db file is opened.
   function adoptForeignTables() {
     const known = new Set(q('SELECT name FROM _dc_tables').map((r) => r.name));
-    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '_dc_%' AND name NOT LIKE 'sqlite_%'");
+    const tables = q("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE '\\_dc\\_%' ESCAPE '\\' AND name NOT LIKE 'sqlite\\_%' ESCAPE '\\'");
+    const present = new Set(tables.map((t) => t.name));
+    known.forEach((name) => { if (!present.has(name)) { run('DELETE FROM _dc_tables WHERE name = ?', [name]); run('DELETE FROM _dc_fields WHERE tbl = ?', [name]); } });
     tables.forEach(({ name }, i) => {
-      if (known.has(name)) return;
-      run('INSERT INTO _dc_tables (name, label, ord, display) VALUES (?, ?, ?, NULL)', [name, labelize(name), 1000 + i]);
-      q(`PRAGMA table_info(${qi(name)})`).forEach((c, j) => {
-        if (c.pk && /INT/i.test(c.type)) return; // rowid alias, shown as the record number
+      if (!known.has(name)) run('INSERT INTO _dc_tables (name, label, ord, display) VALUES (?, ?, ?, NULL)', [name, labelize(name), 1000 + i]);
+      const fields = new Map(q('SELECT name, type FROM _dc_fields WHERE tbl = ?', [name]).map((f) => [f.name, f.type]));
+      const cols = q(`PRAGMA table_info(${qi(name)})`);
+      const colNames = new Set(cols.map((c) => c.name));
+      fields.forEach((type, f) => { if (type !== 'formula' && !colNames.has(f)) run('DELETE FROM _dc_fields WHERE tbl = ? AND name = ?', [name, f]); });
+      const onePk = cols.filter((c) => c.pk).length === 1;
+      let ord = (one('SELECT MAX(ord) AS m FROM _dc_fields WHERE tbl = ?', [name]).m ?? -1) + 1;
+      cols.forEach((c) => {
+        if (fields.has(c.name)) return;
+        if (c.pk && onePk && /INT/i.test(c.type)) return; // rowid alias, shown as the record number
         const t = /INT/i.test(c.type) ? 'number' : /REAL|FLOA|DOUB|NUM|DEC/i.test(c.type) ? 'number' : /DATE/i.test(c.type) ? 'date' : 'text';
-        run('INSERT INTO _dc_fields (tbl, name, label, type, ord, opts) VALUES (?, ?, ?, ?, ?, ?)', [name, c.name, labelize(c.name), t, j, '{}']);
+        run('INSERT INTO _dc_fields (tbl, name, label, type, ord, opts) VALUES (?, ?, ?, ?, ?, ?)', [name, c.name, labelize(c.name), t, ord++, '{}']);
       });
     });
   }
@@ -303,7 +312,7 @@
   DC.TYPES = TYPES;
   Object.assign(DC, {
     sqlReady, openBytes, saveProject, setSettings, loadSchema, changed,
-    db: { q, one, run, table, list, field, createTable, renameTable, setDisplayField, deleteTable, addField, updateField, deleteField, moveField,
+    db: { q, one, run, sync: adoptForeignTables, table, list, field, createTable, renameTable, setDisplayField, deleteTable, addField, updateField, deleteField, moveField,
       createList, setListItems, renameList, renameListValue, listUsage, deleteList,
       rows, getRow, insertRow, updateRow, deleteRows, count, defaults, normalize, linkMap, linkMapsFor, computeFormulas, savePage, deletePage },
   });

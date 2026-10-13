@@ -126,6 +126,21 @@
     await DC.saveProject();
     DC.go({ view: 'home-project' });
   }
+  // Used by the .sql import to start a fresh project.
+  DC.checkProjectName = async (name) => {
+    name = String(name || '').trim();
+    if (!name) return 'Enter a project name.';
+    if (BAD_NAME.test(name)) return 'A name cannot contain \\ / : * ? " < > |';
+    if (await DC.store.exists(name)) return `A project called “${name}” already exists.`;
+    return null;
+  };
+  DC.newEmptyProject = async (name) => {
+    await closeProject(true);
+    await DC.openBytes(name, null);
+    DC.setSettings({ created: DC.todayIso() });
+    DC.project.dirty = true;
+    await DC.saveProject();
+  };
   async function openProject(name) {
     try {
       await closeProject(true);
@@ -309,11 +324,18 @@
     ['Pages', [
       { label: 'New page…', run: () => DC.newPageDialog(), disabled: needP },
     ]],
+    ['Developer', [
+      { label: 'Export for MySQL (.sql)…', run: () => DC.exportMysqlDialog(), disabled: needP },
+      { label: 'Import a MySQL .sql file…', run: () => DC.importMysqlDialog() },
+      '-',
+      { label: 'SQL console…', run: () => DC.sqlConsole(), disabled: needP },
+    ], () => DC.devMode()],
     ['Help', [
       { label: 'Getting started', run: helpStart },
+      { label: () => (DC.devMode() ? 'Turn off developer mode' : 'Turn on developer mode'), run: toggleDevMode },
       { label: 'About DataCraft', run: () => DC.modal({ title: 'About DataCraft', actions: [{ label: 'Close', primary: true }], body: [
-        h('p', null, h('b', null, 'DataCraft'), ' · version 0.1 (stage 1)'),
-        h('p', null, 'Tables, categories, text import, CSV export and printable pages, stored as SQLite databases.'),
+        h('p', null, h('b', null, 'DataCraft'), ' · version 0.2'),
+        h('p', null, 'Tables, categories, text import, CSV export and printable pages, stored as SQLite databases. Developer mode adds MySQL .sql export and import and an SQL console.'),
         h('p', { class: 'muted' }, 'Built with sql.js (SQLite, MIT licence) and Papa Parse (MIT licence).')] }) },
     ]],
   ];
@@ -323,35 +345,45 @@
       h('h3', null, '2. Use categories'), h('p', null, 'A Category field picks from a list you control under Categories. Rename a choice there and every record using it updates. Filter records by category above the grid.'),
       h('h3', null, '3. Link tables'), h('p', null, 'A “Link to another table” field connects records, such as an invoice line to its invoice, or an invoice to its customer. Calculated fields work things out, like [Quantity] * [Unit price].'),
       h('h3', null, '4. Design pages'), h('p', null, 'Pages › New page builds a starting layout. Type fixed text and {Field names} in text boxes, add a table for line items, then Preview and Print. In the print window you can choose “Save as PDF”.'),
-      h('h3', null, '5. Export'), h('p', null, 'Export CSV saves into your project’s exports folder, ready for Excel or another program.')) });
+      h('h3', null, '5. Export'), h('p', null, 'Export CSV saves into your project’s exports folder, ready for Excel or another program.'),
+      h('h3', null, '6. Developer mode'), h('p', null, 'Help › Turn on developer mode adds a Developer menu: export your tables as a MySQL .sql file (for phpMyAdmin or a web host), import .sql files made by phpMyAdmin or mysqldump, and run SQL commands.')) });
+  }
+  function toggleDevMode() {
+    const on = !DC.devMode();
+    DC.setDevMode(on);
+    buildMenubar();
+    DC.toast(on ? 'Developer mode is on: see the Developer menu.' : 'Developer mode is off.');
   }
 
+  let openMenu = null;
+  const closeMenu = () => { if (!openMenu) return; openMenu.btn.setAttribute('aria-expanded', 'false'); openMenu.list.remove(); openMenu = null; };
+  // Built again when developer mode is turned on or off.
   function buildMenubar() {
     const bar = $('#menubar');
-    let open = null;
-    const close = () => { if (!open) return; open.btn.setAttribute('aria-expanded', 'false'); open.list.remove(); open = null; };
-    MENUS.forEach(([name, items]) => {
+    closeMenu();
+    bar.textContent = '';
+    MENUS.filter(([, , show]) => !show || show()).forEach(([name, items]) => {
       const wrap = h('div', { class: 'menu' });
       const btn = h('button', { class: 'menu-btn', 'aria-haspopup': 'menu', 'aria-expanded': 'false' }, name);
       const show = () => {
-        close();
+        closeMenu();
         const list = h('div', { class: 'menu-list', role: 'menu' }, items.map((it) => it === '-' ? h('div', { class: 'menu-sep' }) :
-          h('button', { class: 'menu-item', role: 'menuitem', disabled: !!(it.disabled && it.disabled()), onclick: () => { close(); it.run(); } }, it.label)));
-        wrap.append(list); btn.setAttribute('aria-expanded', 'true'); open = { btn, list, wrap };
+          h('button', { class: 'menu-item', role: 'menuitem', disabled: !!(it.disabled && it.disabled()), onclick: () => { closeMenu(); it.run(); } }, typeof it.label === 'function' ? it.label() : it.label)));
+        wrap.append(list); btn.setAttribute('aria-expanded', 'true'); openMenu = { btn, list, wrap };
         list.addEventListener('keydown', (e) => {
           const b = [...list.querySelectorAll('.menu-item:not(:disabled)')], i = b.indexOf(document.activeElement);
           if (e.key === 'ArrowDown') { e.preventDefault(); b[(i + 1) % b.length].focus(); }
           if (e.key === 'ArrowUp') { e.preventDefault(); b[(i - 1 + b.length) % b.length].focus(); }
         });
       };
-      btn.onclick = () => (open && open.btn === btn ? close() : show());
-      btn.onmouseenter = () => { if (open && open.btn !== btn) show(); };
-      btn.onkeydown = (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); show(); open.list.querySelector('.menu-item:not(:disabled)')?.focus(); } };
+      btn.onclick = () => (openMenu && openMenu.btn === btn ? closeMenu() : show());
+      btn.onmouseenter = () => { if (openMenu && openMenu.btn !== btn) show(); };
+      btn.onkeydown = (e) => { if (e.key === 'ArrowDown') { e.preventDefault(); show(); openMenu.list.querySelector('.menu-item:not(:disabled)')?.focus(); } };
       wrap.append(btn); bar.append(wrap);
     });
-    document.addEventListener('mousedown', (e) => { if (open && !open.wrap.contains(e.target)) close(); });
-    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && open) { const b = open.btn; close(); b.focus(); } });
   }
+  document.addEventListener('mousedown', (e) => { if (openMenu && !openMenu.wrap.contains(e.target)) closeMenu(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && openMenu) { const b = openMenu.btn; closeMenu(); b.focus(); } });
 
   // ---------- Start ----------
   // Light / dark choice is remembered on this computer.
