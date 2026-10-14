@@ -93,6 +93,17 @@ Your own projects and generated sites are never uploaded to GitHub (see `.gitign
 
 Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects inside the browser instead of a folder: use **File › Save a copy (.db)** to back them up there, and the PHP website maker gives you a `.zip`.
 
+## How this was made
+
+This app is **vibe coded**: its author designed and directed it in plain conversation, feature by feature, and an AI coding assistant (Claude, by Anthropic) wrote the code.
+
+It is a **genuine clean-room build**, not a decompiled or AI-rebuilt copy of anything:
+- Nothing was decompiled, disassembled or reverse-engineered, in whole or in part.
+- No code, artwork, fonts, icons or data files from any original program were used, and none were given to the AI to work from.
+- DataCraft takes ideas from desktop database tools and website generators; only publicly known features and general ideas guided the design. Every line of code and every picture here was made new.
+
+Open-source libraries it uses are listed with their licences in Credits.
+
 ## Credits
 
 - [sql.js](https://github.com/sql-js/sql.js) 1.10.3 (SQLite for the browser, MIT)
