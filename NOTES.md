@@ -30,9 +30,9 @@ datacraft\php\sites\<site>-database.sql   its tables and records (kept beside th
 - **`db.sync`** (on open, and after the SQL console) adopts tables and columns that other tools added, and drops metadata for ones that are gone.
 - **Field types:** text, notes, number, money, date (stored `YYYY-MM-DD`), yes/no, category, link (stores the other table's rowid), formula. Formulas are computed in JavaScript, never stored.
 
-## Title bar and ribbon (shared)
+## Title bar and ribbon (this app's own copy)
 
-All four Craft apps use the same `craft-titlebar.js` code: in SiteCraft and DataCraft as a file, pasted into the single-file apps (LabelCraft as its own `<script>`, ShiftCraft inside its main script, so the emailable copy keeps working). It provides:
+The title bar and ribbon code (`CraftTitlebar`, `CraftRibbon`, `CraftIcons`) started as one file shared by the Craft apps. **Each app now keeps its own copy and changes it on its own**: here it is app/js/craft-titlebar.js. Changes are not copied to the other apps, so the apps can be refined separately until it is clear how unified they should be. It provides:
 
 - **`CraftTitlebar`:**
   - logo button that opens every classic menu side by side (F10)
