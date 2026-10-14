@@ -106,6 +106,7 @@
   // ---------- Element DOM ----------
   function elementEl(el, ctx, info, design) {
     const d = h('div', { class: 're re-' + el.type, style: { left: el.x + 'mm', top: el.y + 'mm', width: el.w + 'mm', height: el.h + 'mm' } });
+    if (el.opacity != null && el.opacity < 1) d.style.opacity = el.opacity; // see-through, so items can overlap
     if (el.type === 'text') {
       Object.assign(d.style, { fontSize: el.size + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'left', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, background: el.fill || 'transparent' });
       if (el.fill) d.style.padding = '1.2mm 2mm';
@@ -478,6 +479,12 @@
           h('div', { class: 'row2' }, sel('Fill', el.fill || '', [['', 'None'], ['#f2f2f2', 'Light grey'], ['#d9d9d9', 'Grey'], ['#000000', 'Black']], (v) => set({ fill: v }, true)), num('Corner radius', 'radius', 0.5, el, 0)));
       } else if (el.type === 'table') tableProps(el);
 
+      // Opacity for every kind of item: lower lets what is behind show through.
+      const opV = h('b', null, Math.round((el.opacity ?? 1) * 100) + '%');
+      const opIn = h('input', { type: 'range', min: 0, max: 100, step: 1, value: Math.round((el.opacity ?? 1) * 100), 'aria-label': 'Opacity' });
+      opIn.oninput = () => { el.opacity = +opIn.value / 100; opV.textContent = opIn.value + '%'; redrawSel(); };
+      opIn.onchange = () => { el.opacity = +opIn.value / 100; save(); rerender(); };
+      props.append(h('label', { class: 'field' }, h('span', null, 'Opacity (lower to see through): ', opV), opIn));
       props.append(h('div', { class: 'row2 actions' },
         h('button', { class: 'btn', onclick: () => { const c = JSON.parse(JSON.stringify(el)); c.id = uid(); c.x += 3; c.y += 3; page.elements.push(c); st.sel = c.id; save(); rerender(); }, disabled: el.type === 'table' }, 'Duplicate'),
         h('button', { class: 'btn danger', onclick: () => removeSel() }, 'Delete')),
