@@ -12,6 +12,44 @@
   const numericF = (f) => f && (['number', 'currency'].includes(f.type) || f.type === 'formula');
   const moneyF = (f) => f && (f.type === 'currency' || (f.type === 'formula' && f.opts.currency));
 
+  // Shapes with sharp or rounded corners. Sizes are in any unit; `round` 0 = sharp, 100 = as round as the shape allows.
+  const SHAPES = [['rect', 'Box'], ['ellipse', 'Circle or oval'], ['triangle', 'Triangle'], ['diamond', 'Diamond'], ['pentagon', 'Pentagon'], ['hexagon', 'Hexagon'], ['octagon', 'Octagon'], ['star', 'Star'], ['arrow', 'Arrow'], ['line', 'Line']];
+  function shapePoints(type, w, h, points = 5) {
+    const poly = (n, rot) => Array.from({ length: n }, (_, i) => { const a = ((rot + (360 * i) / n) * Math.PI) / 180; return [w / 2 + (w / 2) * Math.cos(a), h / 2 + (h / 2) * Math.sin(a)]; });
+    switch (type) {
+      case 'triangle': return [[w / 2, 0], [w, h], [0, h]];
+      case 'diamond': return [[w / 2, 0], [w, h / 2], [w / 2, h], [0, h / 2]];
+      case 'pentagon': return poly(5, -90);
+      case 'hexagon': return poly(6, 0);
+      case 'octagon': return poly(8, -67.5);
+      case 'star': { const n = Math.max(3, points), out = []; for (let i = 0; i < 2 * n; i++) { const r = i % 2 ? 0.45 : 1, a = ((-90 + (180 * i) / n) * Math.PI) / 180; out.push([w / 2 + (w / 2) * r * Math.cos(a), h / 2 + (h / 2) * r * Math.sin(a)]); } return out; }
+      case 'arrow': return [[0, h * 0.3], [w * 0.6, h * 0.3], [w * 0.6, 0], [w, h / 2], [w * 0.6, h], [w * 0.6, h * 0.7], [0, h * 0.7]];
+      default: return [[0, 0], [w, 0], [w, h], [0, h]];
+    }
+  }
+  function shapePath(type, w, h, round = 0, points = 5) {
+    const f = (v) => +v.toFixed(2);
+    if (type === 'ellipse') return `M0 ${f(h / 2)}A${f(w / 2)} ${f(h / 2)} 0 1 0 ${f(w)} ${f(h / 2)}A${f(w / 2)} ${f(h / 2)} 0 1 0 0 ${f(h / 2)}Z`;
+    if (type === 'line') return `M0 ${f(h / 2)}L${f(w)} ${f(h / 2)}`;
+    const pts = shapePoints(type, w, h, points), n = pts.length;
+    // 100% rounds each corner to half of the shortest side, so every shape goes smoothly from sharp to fully round.
+    const shortest = Math.min(...pts.map((q, i) => Math.hypot(pts[(i + 1) % n][0] - q[0], pts[(i + 1) % n][1] - q[1]))), R = ((Math.max(0, Math.min(100, round || 0)) / 100) * shortest) / 2;
+    if (!R) return 'M' + pts.map(([x, y]) => `${f(x)} ${f(y)}`).join('L') + 'Z';
+    let d = '';
+    pts.forEach((p, i) => {
+      const a = pts[(i + n - 1) % n], b = pts[(i + 1) % n];
+      const la = Math.hypot(a[0] - p[0], a[1] - p[1]), lb = Math.hypot(b[0] - p[0], b[1] - p[1]), r = Math.min(R, la / 2, lb / 2);
+      const p1 = [p[0] + ((a[0] - p[0]) * r) / la, p[1] + ((a[1] - p[1]) * r) / la], p2 = [p[0] + ((b[0] - p[0]) * r) / lb, p[1] + ((b[1] - p[1]) * r) / lb];
+      d += `${i ? 'L' : 'M'}${f(p1[0])} ${f(p1[1])}Q${f(p[0])} ${f(p[1])} ${f(p2[0])} ${f(p2[1])}`;
+    });
+    return d + 'Z';
+  }
+  // Where words sit inside each shape: centre x, centre y and width, as parts of the shape.
+  const shapeTextBox = (type) => ({ triangle: [0.5, 0.66, 0.55], diamond: [0.5, 0.5, 0.55], star: [0.5, 0.55, 0.42], arrow: [0.42, 0.5, 0.58], ellipse: [0.5, 0.5, 0.72], pentagon: [0.5, 0.56, 0.66], hexagon: [0.5, 0.5, 0.72], octagon: [0.5, 0.5, 0.75] }[type] || [0.5, 0.5, 1]);
+  // Drop shadow as a CSS filter (it follows the shape or the letters). Sizes in mm.
+  const shadowCss = (sh) => (sh ? `drop-shadow(${sh.x ?? 0.6}mm ${sh.y ?? 0.6}mm ${sh.blur ?? 1}mm ${sh.color || 'rgba(0,0,0,.35)'})` : '');
+  const roundMm = (el) => ((el.round || 0) / 100) * Math.min(el.w, el.h) / 2;
+
   // Tables that link to this table (for invoice line items and the like).
   function childLinks(tblName) {
     const out = [];
@@ -107,18 +145,37 @@
   function elementEl(el, ctx, info, design) {
     const d = h('div', { class: 're re-' + el.type, style: { left: el.x + 'mm', top: el.y + 'mm', width: el.w + 'mm', height: el.h + 'mm' } });
     if (el.opacity != null && el.opacity < 1) d.style.opacity = el.opacity; // see-through, so items can overlap
+    if (el.shadow) d.style.filter = shadowCss(el.shadow);
     if (el.type === 'text') {
       Object.assign(d.style, { fontSize: el.size + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'left', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, background: el.fill || 'transparent' });
       if (el.fill) d.style.padding = '1.2mm 2mm';
-      d.innerHTML = design ? designText(el.text) : fillText(el.text, ctx, info);
+      if (el.pad != null) d.style.padding = el.pad + 'mm';
+      if (el.border) d.style.border = `${el.border}mm ${el.dash ? 'dashed' : 'solid'} ${el.stroke || '#000000'}`;
+      if (el.round) d.style.borderRadius = roundMm(el) + 'mm';
+      if (el.valign === 'middle') Object.assign(d.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' });
+      const inner = design ? designText(el.text) : fillText(el.text, ctx, info);
+      d.innerHTML = el.valign === 'middle' ? `<div>${inner}</div>` : inner;
     } else if (el.type === 'image') {
       if (el.src) d.append(h('img', { src: el.src, alt: '', style: { objectFit: el.fit || 'contain' } }));
       else if (design) d.append(h('span', { class: 'ph-box' }, 'Image'));
     } else if (el.type === 'line') {
       const vertical = el.h > el.w;
-      d.append(h('div', { class: 'line-in', style: vertical ? { left: '50%', top: 0, bottom: 0, width: el.thick + 'mm', background: el.color || '#000', transform: 'translateX(-50%)' } : { top: '50%', left: 0, right: 0, height: el.thick + 'mm', background: el.color || '#000', transform: 'translateY(-50%)' } }));
+      const c = el.color || '#000', bg = el.dash ? `repeating-linear-gradient(${vertical ? '180deg' : '90deg'}, ${c} 0 2mm, transparent 2mm 3.5mm)` : c;
+      d.append(h('div', { class: 'line-in', style: vertical ? { left: '50%', top: 0, bottom: 0, width: el.thick + 'mm', background: bg, transform: 'translateX(-50%)', borderRadius: el.round ? el.thick / 2 + 'mm' : 0 } : { top: '50%', left: 0, right: 0, height: el.thick + 'mm', background: bg, transform: 'translateY(-50%)', borderRadius: el.round ? el.thick / 2 + 'mm' : 0 } }));
     } else if (el.type === 'box') {
-      Object.assign(d.style, { border: el.thick ? `${el.thick}mm solid ${el.stroke || '#000'}` : 'none', background: el.fill || 'transparent', borderRadius: (el.radius || 0) + 'mm' });
+      // A shape (box, circle, triangle, diamond, polygons, star, arrow) with sharp or round corners and words inside.
+      const shape = el.shape || 'rect', sw = el.thick || 0;
+      const rnd = el.round ?? (el.radius ? Math.min(100, (el.radius / (Math.min(el.w, el.h) / 2)) * 100) : 0);
+      const path = shapePath(shape, Math.max(0.1, el.w - sw), Math.max(0.1, el.h - sw), rnd, el.points || 5);
+      d.style.overflow = 'visible';
+      d.innerHTML = `<svg viewBox="0 0 ${el.w} ${el.h}" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0;overflow:visible"><path d="${path}" transform="translate(${sw / 2} ${sw / 2})" fill="${el.fill || 'none'}" stroke="${sw ? el.stroke || '#000000' : 'none'}" stroke-width="${sw}" stroke-linejoin="${rnd ? 'round' : 'miter'}" ${el.dash ? 'stroke-dasharray="2 1.5"' : ''}/></svg>`;
+      if (el.text) {
+        const [cx, cy, tw] = shapeTextBox(shape), pad = el.pad ?? 1.5;
+        const t = h('div', { class: 'shape-text', style: { position: 'absolute', left: (el.w * cx - (el.w * tw) / 2 + pad) + 'mm', width: (el.w * tw - 2 * pad) + 'mm', top: el.valign === 'top' && shape === 'rect' ? pad + 'mm' : (el.h * cy) + 'mm', transform: el.valign === 'top' && shape === 'rect' ? 'none' : 'translateY(-50%)',
+          fontSize: (el.size || 10) + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'center', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, lineHeight: 1.25, whiteSpace: 'pre-wrap', wordWrap: 'break-word' } });
+        t.innerHTML = design ? designText(el.text) : fillText(el.text, ctx, info);
+        d.append(t);
+      }
     } else if (el.type === 'table') {
       const shell = tableShell(el, ctx);
       d.style.height = design ? el.h + 'mm' : 'auto';
@@ -360,7 +417,8 @@
       tool('Text', 'A text box. Type fixed text and {fields}.', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 8, text: 'New text', size: 10, align: 'left', font: 'sans', color: '#000000' })),
       tool('Image / logo', 'A picture from your computer', () => addEl({ type: 'image', x: M, y: M, w: 40, h: 20, src: '', fit: 'contain' })),
       tool('Line', 'A horizontal line', () => addEl({ type: 'line', x: M, y: M + 60, w: W - 2 * M, h: 2, thick: 0.3, color: '#000000' })),
-      tool('Box', 'A rectangle with a border or fill', () => addEl({ type: 'box', x: M, y: M + 60, w: 60, h: 25, thick: 0.3, stroke: '#000000', fill: '', radius: 0 })),
+      tool('Text box', 'Words in a box that wrap, with a border, background, padding and shadow', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 25, text: 'Type here. Words wrap inside the box.', size: 10, align: 'left', font: 'sans', color: '#000000', border: 0.3, stroke: '#000000', pad: 2, round: 0 })),
+      tool('Shape', 'A box, circle, triangle, diamond, pentagon, hexagon, octagon, star or arrow, with sharp or round corners and words inside', () => addEl({ type: 'box', shape: 'rect', x: M, y: M + 60, w: 60, h: 25, thick: 0.3, stroke: '#000000', fill: '', round: 0 })),
       tool('Table', page.elements.some((e) => e.type === 'table') ? 'A page can have one table' : 'A table of records that flows onto more pages',
         () => {
           const src = page.kind === 'list' ? null : childLinks(page.table)[0] || null;
@@ -415,6 +473,25 @@
     const props = h('aside', { class: 'props' });
     designer.append(props);
     let updatePos = () => {};
+    // Shared pieces of the properties panel: corners, colour-or-none, the text box look and the drop shadow.
+    const corners = (el, set) => { const v = h('b', null, el.round ? el.round + '%' : 'sharp'); const r = h('input', { type: 'range', min: 0, max: 100, value: el.round ?? 0 }); r.oninput = () => { v.textContent = +r.value ? r.value + '%' : 'sharp'; el.round = +r.value; delete el.radius; redrawSel(); }; r.onchange = () => { save(); rerender(); }; return h('label', { class: 'field' }, h('span', null, 'Corners, sharp to round: ', v), r); };
+    const colorOrNone = (label, value, on) => h('label', { class: 'field' }, h('span', null, label), h('span', { style: { display: 'flex', gap: '6px', alignItems: 'center' } },
+      h('input', { class: 'input', type: 'color', value: /^#[0-9a-f]{6}$/i.test(value || '') ? value : '#ffffff', onchange: (e) => on(e.target.value) }),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !value, onchange: (e) => on(e.target.checked ? '' : '#ffffff') }), ' None')));
+    const boxLook = (el, set, num) => [h('h3', null, 'Box around the words'),
+      h('div', { class: 'row2' }, colorOrNone('Background', el.fill, (v) => set({ fill: v, pad: el.pad ?? (v ? 2 : undefined) }, true)), num('Border mm', 'border', 0.1, el, 0)),
+      h('div', { class: 'row2' }, h('label', { class: 'field' }, h('span', null, 'Border colour'), h('input', { class: 'input', type: 'color', value: el.stroke || '#000000', onchange: (e) => set({ stroke: e.target.value }, true) })), num('Padding mm', 'pad', 0.5, el, 0)),
+      corners(el, set),
+      h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!el.dash, onchange: (e) => set({ dash: e.target.checked }, true) }), ' Dashed border'),
+      h('div', { class: 'seg' }, [['top', 'Top'], ['middle', 'Middle']].map(([v, n]) => h('button', { class: 'btn', 'aria-pressed': String((el.valign || 'top') === v), onclick: () => set({ valign: v }, true) }, n)))];
+    const shadowProps = (el, set) => {
+      const sh = el.shadow, out = [h('h3', null, 'Drop shadow'), h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!sh, onchange: (e) => set({ shadow: e.target.checked ? { blur: 1, x: 0.6, y: 0.6, color: 'rgba(0,0,0,.35)' } : null }, true) }), ' Drop shadow')];
+      if (sh) {
+        const slider = (label, key, max, both) => { const v = h('b', null, (sh[key] ?? 0) + ' mm'); const r = h('input', { type: 'range', min: 0, max, step: 0.1, value: sh[key] ?? 0 }); r.oninput = () => { v.textContent = r.value + ' mm'; sh[key] = +r.value; if (both) sh.y = +r.value; redrawSel(); }; r.onchange = () => { save(); rerender(); }; return h('label', { class: 'field' }, h('span', null, label + ': ', v), r); };
+        out.push(h('div', { class: 'row2' }, slider('Softness', 'blur', 6), slider('Distance', 'x', 5, true)));
+      }
+      return out;
+    };
     function renderProps() {
       props.textContent = '';
       const el = selEl();
@@ -437,7 +514,7 @@
         updatePos = () => {};
         return;
       }
-      const names = { text: 'Text', image: 'Image', line: 'Line', box: 'Box', table: 'Table' };
+      const names = { text: el.border || el.pad != null ? 'Text box' : 'Text', image: 'Image', line: 'Line', box: 'Shape', table: 'Table' };
       const pos = h('div', { class: 'row4' }, num('X mm', 'x'), num('Y mm', 'y'), num('Width', 'w', 0.5, el, 1), num(el.type === 'table' ? 'Height (per page)' : 'Height', 'h', 0.5, el, 1));
       updatePos = () => { const ins = pos.querySelectorAll('input'); ['x', 'y', 'w', 'h'].forEach((k, i) => { ins[i].value = round(el[k]); }); };
       props.append(h('h3', null, names[el.type]), pos);
@@ -459,8 +536,8 @@
             h('button', { class: 'btn', 'aria-pressed': String(!!el.italic), onclick: () => set({ italic: !el.italic }, true) }, h('i', null, 'I')),
             ['left', 'center', 'right'].map((a) => h('button', { class: 'btn', 'aria-pressed': String((el.align || 'left') === a), onclick: () => set({ align: a }, true) }, a[0].toUpperCase() + a.slice(1)))),
           h('div', { class: 'row2' },
-            h('label', { class: 'field' }, h('span', null, 'Colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', oninput: (e) => set({ color: e.target.value }) })),
-            sel('Background', el.fill || '', [['', 'None'], ['#eeeeee', 'Light grey'], ['#000000', 'Black']], (v) => set({ fill: v, color: v === '#000000' ? '#ffffff' : el.color === '#ffffff' ? '#000000' : el.color }, true))));
+            h('label', { class: 'field' }, h('span', null, 'Colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', oninput: (e) => set({ color: e.target.value }) }))));
+        props.append(...boxLook(el, set, num, sel));
       } else if (el.type === 'image') {
         const fileIn = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: () => {
           const f = fileIn.files[0]; if (!f) return;
@@ -472,12 +549,28 @@
       } else if (el.type === 'line') {
         props.append(h('div', { class: 'row2' }, num('Thickness mm', 'thick', 0.1, el, 0.1),
           h('label', { class: 'field' }, h('span', null, 'Colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', oninput: (e) => set({ color: e.target.value }) }))),
+          h('div', { class: 'seg' }, ['Square ends', 'Round ends'].map((n, k) => h('button', { class: 'btn', 'aria-pressed': String(!!el.round === !!k), onclick: () => set({ round: k ? 100 : 0 }, true) }, n))),
+          h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!el.dash, onchange: (e) => set({ dash: e.target.checked }, true) }), ' Dashed'),
           h('p', { class: 'hint' }, 'Make the box taller than it is wide for a vertical line.'));
       } else if (el.type === 'box') {
-        props.append(h('div', { class: 'row2' }, num('Border mm', 'thick', 0.1, el, 0),
-          h('label', { class: 'field' }, h('span', null, 'Border colour'), h('input', { class: 'input', type: 'color', value: el.stroke || '#000000', oninput: (e) => set({ stroke: e.target.value }) }))),
-          h('div', { class: 'row2' }, sel('Fill', el.fill || '', [['', 'None'], ['#f2f2f2', 'Light grey'], ['#d9d9d9', 'Grey'], ['#000000', 'Black']], (v) => set({ fill: v }, true)), num('Corner radius', 'radius', 0.5, el, 0)));
+        const shape = el.shape || 'rect';
+        props.append(sel('Shape', shape, SHAPES.filter(([v]) => v !== 'line'), (v) => set({ shape: v }, true)),
+          shape === 'ellipse' ? null : corners(el, set),
+          shape === 'star' ? num('Star points', 'points', 1, el, 3) : null,
+          h('div', { class: 'row2' }, colorOrNone('Fill', el.fill, (v) => set({ fill: v }, true)), num('Border mm', 'thick', 0.1, el, 0)),
+          h('div', { class: 'row2' }, h('label', { class: 'field' }, h('span', null, 'Border colour'), h('input', { class: 'input', type: 'color', value: el.stroke || '#000000', onchange: (e) => set({ stroke: e.target.value }, true) })),
+            h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!el.dash, onchange: (e) => set({ dash: e.target.checked }, true) }), ' Dashed')),
+          h('h3', null, 'Words inside'),
+          (() => { const ta = h('textarea', { class: 'input', rows: 3, placeholder: 'Words inside the shape (fields in {curly brackets} work too)' }, el.text || ''); ta.oninput = () => { el.text = ta.value; save(); redrawSel(); }; return ta; })(),
+          h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), sel('Font', el.font || 'sans', [['sans', 'Sans (Arial)'], ['serif', 'Serif (Georgia)'], ['mono', 'Typewriter']], (v) => set({ font: v }, true))),
+          h('div', { class: 'seg' },
+            h('button', { class: 'btn', 'aria-pressed': String(!!el.bold), onclick: () => set({ bold: !el.bold }, true) }, h('b', null, 'B')),
+            h('button', { class: 'btn', 'aria-pressed': String(!!el.italic), onclick: () => set({ italic: !el.italic }, true) }, h('i', null, 'I')),
+            ['left', 'center', 'right'].map((a) => h('button', { class: 'btn', 'aria-pressed': String((el.align || 'center') === a), onclick: () => set({ align: a }, true) }, a[0].toUpperCase() + a.slice(1)))),
+          h('div', { class: 'row2' }, h('label', { class: 'field' }, h('span', null, 'Text colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', onchange: (e) => set({ color: e.target.value }, true) })), num('Padding mm', 'pad', 0.5, el, 0)),
+          shape === 'rect' ? h('div', { class: 'seg' }, [['top', 'Top'], ['middle', 'Middle']].map(([v, n]) => h('button', { class: 'btn', 'aria-pressed': String((el.valign || 'middle') === v), onclick: () => set({ valign: v }, true) }, n))) : null);
       } else if (el.type === 'table') tableProps(el);
+      if (el.type !== 'table') props.append(...shadowProps(el, set));
 
       // Opacity for every kind of item: lower lets what is behind show through.
       const opV = h('b', null, Math.round((el.opacity ?? 1) * 100) + '%');

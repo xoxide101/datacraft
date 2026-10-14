@@ -114,3 +114,7 @@ All built on 2026-10-13.
 - Test imports on real-world TXT exports.
 - More page designer elements: barcodes, signatures.
 - MongoDB was deliberately left out.
+
+## Shapes
+
+- **Shapes, text boxes and shadows (same features in every Craft app that places objects):** box, circle/oval, triangle, diamond, pentagon, hexagon, octagon, star and arrow (plus lines), with corners from sharp to round (`shapePath`: 100% rounds each corner to half the shortest side), words inside, text boxes with wrapping, border, background, corners and padding, a drop shadow and opacity. Each app has its own copy of the shape geometry.
