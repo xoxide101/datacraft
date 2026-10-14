@@ -1,3 +1,5 @@
+<img src="docs/logo.svg" width="64" height="64" alt="DataCraft logo">
+
 # DataCraft
 
 **A simple database maker in your browser, in the spirit of Microsoft Access and PHPMaker.**
@@ -14,6 +16,15 @@ Make tables, import text files, keep category lists, link tables together, and d
 2. Double-click `app/index.html`. It opens in Chrome or Edge.
 3. The first time, click **Choose the datacraft folder** and pick the folder that contains `app`, `projects` and `php`. DataCraft saves every project there.
 4. Click **Create the sample shop project** to see customers, products, invoices and ready-made pages, or **+ New project** to start your own.
+
+## Finding your way
+
+| Where | What is there |
+| --- | --- |
+| **DataCraft logo** (top left) | Every command in classic menus: File, Data, Pages, Developer, Help (also F10) |
+| **Top bar** | Quick buttons (overview, new table, import, export CSV, save a copy; customize them with ⌄), the project name and save state, **Search commands (Alt+Q)**, tables, where it is saved, developer mode, theme, help |
+| **Ribbon tabs** | **Home** (projects), **Data** (tables, categories, import and export), **Pages**, and **Developer** when developer mode is on (MySQL, SQL console, PHP website) |
+| **Left side** | Your tables, category lists and pages |
 
 ## What it does
 

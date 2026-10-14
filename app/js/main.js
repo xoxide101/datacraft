@@ -409,30 +409,49 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeButton);
   paintThemeButton();
 
-  // Title bar at the very top (Office style): logo, quick buttons, project name and save state,
-  // command search (Alt+Q), small info, theme and help.
+  // Title bar at the very top (Office style) and the ribbon under it. The logo opens every menu;
+  // the old menu bar is hidden. Shared CraftTitlebar / CraftRibbon (js/craft-titlebar.js).
+  const LOGO = `<svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="dtc-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f8a5b"/><stop offset=".55" stop-color="#1f7a7f"/><stop offset="1" stop-color="#2563a8"/></linearGradient></defs><rect x="1" y="1" width="38" height="38" rx="11" fill="url(#dtc-g)"/><ellipse cx="18.5" cy="11.5" rx="9.5" ry="3.6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 11.5v16c0 2 4.3 3.6 9.5 3.6S28 29.5 28 27.5v-16M9 19.5c0 2 4.3 3.6 9.5 3.6S28 21.5 28 19.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M28.5 21.5l1.2 2.8 2.8 1.2-2.8 1.2-1.2 2.8-1.2-2.8-2.8-1.2 2.8-1.2Z" fill="#ffe066"/></svg>`;
   function buildTitlebar() {
-    if (!window.CraftTitlebar) return;
-    const I = {
-      home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/>',
-      table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
-      import: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v5h16v-5"/>',
-      exportCsv: '<path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v5h16v-5"/>',
-    };
-    const brand = $('#brand');
-    brand.classList.add('ctb-brand');
+    if (!window.CraftTitlebar || !window.CraftRibbon) return;
+    const I = window.CraftIcons;
     const style = document.createElement('style');
-    style.textContent = '.app.has-ctb { grid-template-rows: auto auto minmax(0, 1fr); } .app > .ctb { grid-column: 1 / -1; } .ctb .ctb-brand { color: #fff; font-size: 15px; } .ctb .ctb-brand .brand-grid i { background: #fff; } .bar .project-name { display: none; }';
+    style.textContent = '.app.has-ctb { grid-template-rows: auto auto minmax(0, 1fr); } .app > .ctb, .app > .crb { grid-column: 1 / -1; } .app.has-ctb > .bar { display: none; } .crb .nav-toggle { display: none; } @media (max-width: 900px) { .crb .nav-toggle { display: inline-flex; } }';
     document.head.append(style);
+    const app = document.querySelector('.app');
+    const B = (label, icon, run, o = {}) => ({ label, icon, run, ...o });
+    const needDev = () => !DC.devMode();
+    const ribbon = window.CraftRibbon({
+      mount: app, storageKey: 'datacraft',
+      extraEls: [$('#nav-toggle')],
+      tabs: [
+        { id: 'home', label: 'Home', hue: '#1f8a5b', groups: [
+          ['Projects', [B('New project', I.newPage, () => newProject(), { big: true }), { col: [B('Open project', I.folder, () => closeProject()), B('Open a .db file', I.db, openDbFile), B('Create the sample shop', I.home, () => newProject({ sample: true }))] }]],
+          ['This project', [B('Overview', I.home, () => DC.go({ view: 'home-project' }), { big: true, disabled: needP }), { col: [B('Settings', I.gear, settingsDialog, { disabled: needP }), B('Save a copy (.db)', I.save, saveCopy, { disabled: needP }), B('Close project', I.close, () => closeProject(), { disabled: needP })] }]],
+        ] },
+        { id: 'data', label: 'Data', hue: '#2563a8', groups: [
+          ['Tables', [B('New table', I.table, newTable, { big: true, disabled: needP }), B('New category list', I.list, newList, { big: true, disabled: needP })]],
+          ['Text and CSV', [B('Import text or CSV', I.import, () => DC.importWizard(DC.state.view === 'table' ? { table: DC.state.id } : {}), { big: true, disabled: needP }), B('Export CSV', I.exportUp, () => DC.exportDialog(DC.state.view === 'table' ? { table: DC.state.id } : {}), { big: true, disabled: needP })]],
+        ] },
+        { id: 'pages', label: 'Pages', hue: '#b45309', groups: [
+          ['Pages', [B('New page', I.newPage, () => DC.newPageDialog(), { big: true, disabled: needP })]],
+          ['Help', [B('How pages work', I.help, helpStart, { big: true })]],
+        ] },
+        { id: 'developer', label: 'Developer', hue: '#7b4fd6', show: () => DC.devMode(), groups: [
+          ['MySQL', [B('Export for MySQL', I.exportUp, () => DC.exportMysqlDialog(), { big: true, disabled: needP }), B('Import a .sql file', I.import, () => DC.importMysqlDialog(), { big: true })]],
+          ['Tools', [B('SQL console', I.console, () => DC.sqlConsole(), { big: true, disabled: needP }), B('Make a PHP website', I.globe, () => DC.phpSiteDialog(), { big: true, disabled: needP })]],
+          ['Developer mode', [B('Turn it off', I.close, toggleDevMode, { big: true, disabled: needDev })]],
+        ] },
+      ],
+    });
     window.CraftTitlebar({
       appName: 'DataCraft', storageKey: 'datacraft', colors: ['#1f8a5b', '#2563a8'],
-      mount: document.querySelector('.app'), toast: DC.toast,
-      leftEls: [brand],
+      mount: app, toast: DC.toast, logo: LOGO, menus: () => MENUS, ribbon,
       quick: [
         { icon: I.home, title: 'Overview of the project', run: () => (DC.project ? DC.go({ view: 'home-project' }) : DC.render()) },
         { icon: I.table, title: 'New table', run: newTable, disabled: needP },
         { icon: I.import, title: 'Import text or CSV', run: () => DC.importWizard(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
-        { icon: I.exportCsv, title: 'Export CSV', run: () => DC.exportDialog(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
+        { icon: I.exportUp, title: 'Export CSV', run: () => DC.exportDialog(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
         { icon: 'save', title: 'Save a copy of the project (.db)', run: saveCopy, disabled: needP },
       ],
       getTitle: () => (DC.project ? DC.project.name : 'No project open'),
@@ -441,13 +460,14 @@
         DC.project ? { text: `${DC.project.schema.tables.length} table${DC.project.schema.tables.length === 1 ? '' : 's'}`, title: 'Tables in this project' } : null,
         { text: DC.store.mode === 'folder' ? 'Saved in a folder' : DC.store.mode === 'browser' ? 'Saved in this browser' : 'Not set up yet', title: 'Where projects are kept' },
         { text: DC.devMode() ? 'Developer mode on' : 'Developer mode off', title: 'Click to switch developer mode', run: toggleDevMode },
-      ].filter(Boolean),
+      ],
       rightEls: [$('#theme-btn')],
       onHelp: helpStart,
-      getCommands: () => MENUS.filter(([, , show]) => !show || show()).flatMap(([name, items]) => items.filter((it) => it && it !== '-' && it.run)
-        .map((it) => ({ label: typeof it.label === 'function' ? it.label() : it.label, path: name + ' menu', run: it.run, disabled: it.disabled }))),
     });
-    document.querySelector('.app').classList.add('has-ctb');
+    app.classList.add('has-ctb');
+    const icon = document.createElement('link'); icon.rel = 'icon';
+    icon.href = 'data:image/svg+xml,' + encodeURIComponent(LOGO.replace('<svg ', '<svg xmlns="http://www.w3.org/2000/svg" '));
+    document.head.append(icon);
   }
 
   async function start() {
