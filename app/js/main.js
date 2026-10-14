@@ -409,8 +409,50 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeButton);
   paintThemeButton();
 
+  // Title bar at the very top (Office style): logo, quick buttons, project name and save state,
+  // command search (Alt+Q), small info, theme and help.
+  function buildTitlebar() {
+    if (!window.CraftTitlebar) return;
+    const I = {
+      home: '<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4Z"/>',
+      table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
+      import: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 15v5h16v-5"/>',
+      exportCsv: '<path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 15v5h16v-5"/>',
+    };
+    const brand = $('#brand');
+    brand.classList.add('ctb-brand');
+    const style = document.createElement('style');
+    style.textContent = '.app.has-ctb { grid-template-rows: auto auto minmax(0, 1fr); } .app > .ctb { grid-column: 1 / -1; } .ctb .ctb-brand { color: #fff; font-size: 15px; } .ctb .ctb-brand .brand-grid i { background: #fff; } .bar .project-name { display: none; }';
+    document.head.append(style);
+    window.CraftTitlebar({
+      appName: 'DataCraft', storageKey: 'datacraft', colors: ['#1f8a5b', '#2563a8'],
+      mount: document.querySelector('.app'), toast: DC.toast,
+      leftEls: [brand],
+      quick: [
+        { icon: I.home, title: 'Overview of the project', run: () => (DC.project ? DC.go({ view: 'home-project' }) : DC.render()) },
+        { icon: I.table, title: 'New table', run: newTable, disabled: needP },
+        { icon: I.import, title: 'Import text or CSV', run: () => DC.importWizard(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
+        { icon: I.exportCsv, title: 'Export CSV', run: () => DC.exportDialog(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
+        { icon: 'save', title: 'Save a copy of the project (.db)', run: saveCopy, disabled: needP },
+      ],
+      getTitle: () => (DC.project ? DC.project.name : 'No project open'),
+      getStatus: () => (DC.project ? { text: ($('#save-status') || {}).textContent || '', dirty: !!DC.project.dirty } : { text: 'Pick or create a project' }),
+      getInfo: () => [
+        DC.project ? { text: `${DC.project.schema.tables.length} table${DC.project.schema.tables.length === 1 ? '' : 's'}`, title: 'Tables in this project' } : null,
+        { text: DC.store.mode === 'folder' ? 'Saved in a folder' : DC.store.mode === 'browser' ? 'Saved in this browser' : 'Not set up yet', title: 'Where projects are kept' },
+        { text: DC.devMode() ? 'Developer mode on' : 'Developer mode off', title: 'Click to switch developer mode', run: toggleDevMode },
+      ].filter(Boolean),
+      rightEls: [$('#theme-btn')],
+      onHelp: helpStart,
+      getCommands: () => MENUS.filter(([, , show]) => !show || show()).flatMap(([name, items]) => items.filter((it) => it && it !== '-' && it.run)
+        .map((it) => ({ label: typeof it.label === 'function' ? it.label() : it.label, path: name + ' menu', run: it.run, disabled: it.disabled }))),
+    });
+    document.querySelector('.app').classList.add('has-ctb');
+  }
+
   async function start() {
     buildMenubar();
+    buildTitlebar();
     $('#nav-toggle').onclick = () => document.body.classList.toggle('nav-open');
     $('#brand').onclick = () => (DC.project ? DC.go({ view: 'home-project' }) : DC.render());
     $('#settings-btn').onclick = () => DC.project && settingsDialog();

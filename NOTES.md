@@ -30,6 +30,14 @@ datacraft\php\sites\<site>-database.sql   its tables and records (kept beside th
 - **`db.sync`** (on open, and after the SQL console) adopts tables and columns that other tools added, and drops metadata for ones that are gone.
 - **Field types:** text, notes, number, money, date (stored `YYYY-MM-DD`), yes/no, category, link (stores the other table's rowid), formula. Formulas are computed in JavaScript, never stored.
 
+## Title bar
+
+`app/js/craft-titlebar.js` (the shared `CraftTitlebar` component, the same file as in SiteCraft) is set up by `buildTitlebar()` in `main.js`.
+
+- **Quick buttons:** overview, new table, import, export CSV, save a copy.
+- **Info chips:** tables, where projects are kept, developer mode (click to switch).
+- **Search:** Alt+Q searches every menu command, including the Developer menu when it is on.
+
 ## MySQL (`mysql.js`)
 
 **Export**
