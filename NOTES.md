@@ -128,3 +128,7 @@ All built on 2026-10-13.
 ## Sliders you can type into
 
 `js/range-type.js` (loaded last) adds a number box beside every `input[type=range]`, including ones built later (a MutationObserver watches the page). Typing fires the same `input` and `change` events as dragging, so panels need no changes. Wrap a slider in `[data-rt-skip]` to leave it alone. Each app has its own copy.
+
+## Date and time
+
+Dates: `js/pages.js` has `DATE_FORMATS` and `dateDialog`. Text elements resolve `{Date:fmt}` (any format id, case-insensitive), `{Time}` and `{Now}` alongside `{Today}`; the "Date and time…" button inserts either the words or the field.
