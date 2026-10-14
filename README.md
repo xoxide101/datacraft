@@ -95,6 +95,7 @@ Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects
 
 ## Objects and text in the page designer (the same in every Craft app)
 
+- **Every slider has a box beside it** to type the exact value (Enter or Tab to apply).
 - **Shapes:** box, circle, triangle, diamond, pentagon, hexagon, octagon, star and arrow with **corners from sharp to round** and **words inside**, including `{fields}` (a star that says PAID, for example). Lines have square or round ends and can be dashed. **3-D** in three colours (face, side and edge) and borders of **one line or three** (outer, middle and inner, each in its own colour, with an optional gap).
 - **Text box:** text with a background, border, corners, padding and top or middle alignment.
 - **Opacity** and **drop shadow** for every item, on screen and in print.
