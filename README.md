@@ -93,6 +93,12 @@ Your own projects and generated sites are never uploaded to GitHub (see `.gitign
 
 Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects inside the browser instead of a folder: use **File › Save a copy (.db)** to back them up there, and the PHP website maker gives you a `.zip`.
 
+## Objects and text in the page designer (the same in every Craft app)
+
+- **Shapes:** box, circle, triangle, diamond, pentagon, hexagon, octagon, star and arrow with **corners from sharp to round** and **words inside**, including `{fields}` (a star that says PAID, for example). Lines have square or round ends and can be dashed.
+- **Text box:** text with a background, border, corners, padding and top or middle alignment.
+- **Opacity** and **drop shadow** for every item, on screen and in print.
+
 ## How this was made
 
 This app is **vibe coded**: its author designed and directed it in plain conversation, feature by feature, and an AI coding assistant (Claude, by Anthropic) wrote the code.

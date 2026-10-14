@@ -118,3 +118,5 @@ All built on 2026-10-13.
 ## Shapes
 
 - **Shapes, text boxes and shadows (same features in every Craft app that places objects):** box, circle/oval, triangle, diamond, pentagon, hexagon, octagon, star and arrow (plus lines), with corners from sharp to round (`shapePath`: 100% rounds each corner to half the shortest side), words inside, text boxes with wrapping, border, background, corners and padding, a drop shadow and opacity. Each app has its own copy of the shape geometry.
+
+**2026-10-14:** Page designer: shapes with rounded corners and words inside, text boxes, drop shadow, opacity.
