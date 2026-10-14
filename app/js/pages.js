@@ -46,6 +46,29 @@
   }
   // Where words sit inside each shape: centre x, centre y and width, as parts of the shape.
   const shapeTextBox = (type) => ({ triangle: [0.5, 0.66, 0.55], diamond: [0.5, 0.5, 0.55], star: [0.5, 0.55, 0.42], arrow: [0.42, 0.5, 0.58], ellipse: [0.5, 0.5, 0.72], pentagon: [0.5, 0.56, 0.66], hexagon: [0.5, 0.5, 0.72], octagon: [0.5, 0.5, 0.75] }[type] || [0.5, 0.5, 1]);
+  // Everything a shape draws, back to front: the 3-D sides, the face, and one border line or three (outer, middle, inner).
+  // Three colours for 3-D: face (fill), side (depth) and edge (border). `k` turns mm (or px) into drawing units.
+  // Returns [{ d, x, y, fill, stroke, sw, dash, face }]; the face size is the box less the 3-D depth.
+  function shapeLayers(s, W, H, k) {
+    const rnd = s.round || 0, pts = s.points || 5, depth = Math.max(0, (s.depth || 0) * k);
+    const FW = Math.max(1, W - depth), FH = Math.max(1, H - depth);
+    const at = (inset, x0, y0, fill, stroke, sw, dash, face) => ({ d: shapePath(s.type, Math.max(1, FW - 2 * inset), Math.max(1, FH - 2 * inset), rnd, pts), x: x0 + inset, y: y0 + inset, fill: fill || 'none', stroke: stroke || 'none', sw: sw || 0, dash: !!dash, face: !!face });
+    const out = [];
+    if (depth) {
+      const n = Math.max(3, Math.ceil(depth / (0.35 * k)));
+      for (let i = n; i >= 1; i--) out.push(at(0, (depth * i) / n, (depth * i) / n, s.side || '#6b6b6b', i === n && s.stroke ? s.stroke : null, i === n && s.stroke ? (s.sw || 0.4) * k : 0));
+    }
+    const L = s.lines;
+    if (L) {
+      out.push(at(0, 0, 0, s.fill, null, 0, false, true));
+      const o = ((L.outer && L.outer.w) || 0) * k, m = ((L.middle && L.middle.w) || 0) * k, i = ((L.inner && L.inner.w) || 0) * k;
+      if (o) out.push(at(o / 2, 0, 0, null, L.outer.color, o, s.dash));
+      if (m && L.middle.color) out.push(at(o + m / 2, 0, 0, null, L.middle.color, m, s.dash));
+      if (i) out.push(at(o + m + i / 2, 0, 0, null, L.inner.color, i, s.dash));
+    } else out.push(at(0, 0, 0, s.fill, s.stroke, s.stroke ? (s.sw || 0.4) * k : 0, s.dash, true));
+    return { layers: out, FW, FH };
+  }
+  const defaultLines = (base) => ({ outer: { color: base || '#222222', w: 1.2 }, middle: { color: '', w: 0.8 }, inner: { color: base || '#222222', w: 0.4 } });
   // Drop shadow as a CSS filter (it follows the shape or the letters). Sizes in mm.
   const shadowCss = (sh) => (sh ? `drop-shadow(${sh.x ?? 0.6}mm ${sh.y ?? 0.6}mm ${sh.blur ?? 1}mm ${sh.color || 'rgba(0,0,0,.35)'})` : '');
   const roundMm = (el) => ((el.round || 0) / 100) * Math.min(el.w, el.h) / 2;
@@ -166,12 +189,15 @@
       // A shape (box, circle, triangle, diamond, polygons, star, arrow) with sharp or round corners and words inside.
       const shape = el.shape || 'rect', sw = el.thick || 0;
       const rnd = el.round ?? (el.radius ? Math.min(100, (el.radius / (Math.min(el.w, el.h) / 2)) * 100) : 0);
-      const path = shapePath(shape, Math.max(0.1, el.w - sw), Math.max(0.1, el.h - sw), rnd, el.points || 5);
+      // 3-D sides, the face and one or three border lines (outer, middle, inner), in mm.
+      const L = shapeLayers({ type: shape, round: rnd, points: el.points || 5, fill: el.fill, stroke: sw ? el.stroke || '#000000' : null, sw, dash: el.dash, depth: el.depth, side: el.side, lines: el.lines }, el.w, el.h, 1);
       d.style.overflow = 'visible';
-      d.innerHTML = `<svg viewBox="0 0 ${el.w} ${el.h}" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0;overflow:visible"><path d="${path}" transform="translate(${sw / 2} ${sw / 2})" fill="${el.fill || 'none'}" stroke="${sw ? el.stroke || '#000000' : 'none'}" stroke-width="${sw}" stroke-linejoin="${rnd ? 'round' : 'miter'}" ${el.dash ? 'stroke-dasharray="2 1.5"' : ''}/></svg>`;
+      d.innerHTML = `<svg viewBox="0 0 ${el.w} ${el.h}" width="100%" height="100%" preserveAspectRatio="none" style="position:absolute;inset:0;overflow:visible">`
+        + L.layers.map((l) => `<path d="${l.d}" transform="translate(${l.x} ${l.y})" fill="${l.fill}" stroke="${l.stroke}" stroke-width="${l.sw}" stroke-linejoin="${rnd ? 'round' : 'miter'}" ${l.dash ? 'stroke-dasharray="2 1.5"' : ''}/>`).join('') + '</svg>';
+      const FW = L.FW, FH = L.FH;
       if (el.text) {
         const [cx, cy, tw] = shapeTextBox(shape), pad = el.pad ?? 1.5;
-        const t = h('div', { class: 'shape-text', style: { position: 'absolute', left: (el.w * cx - (el.w * tw) / 2 + pad) + 'mm', width: (el.w * tw - 2 * pad) + 'mm', top: el.valign === 'top' && shape === 'rect' ? pad + 'mm' : (el.h * cy) + 'mm', transform: el.valign === 'top' && shape === 'rect' ? 'none' : 'translateY(-50%)',
+        const t = h('div', { class: 'shape-text', style: { position: 'absolute', left: (FW * cx - (FW * tw) / 2 + pad) + 'mm', width: (FW * tw - 2 * pad) + 'mm', top: el.valign === 'top' && shape === 'rect' ? pad + 'mm' : (FH * cy) + 'mm', transform: el.valign === 'top' && shape === 'rect' ? 'none' : 'translateY(-50%)',
           fontSize: (el.size || 10) + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'center', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, lineHeight: 1.25, whiteSpace: 'pre-wrap', wordWrap: 'break-word' } });
         t.innerHTML = design ? designText(el.text) : fillText(el.text, ctx, info);
         d.append(t);
@@ -560,6 +586,15 @@
           h('div', { class: 'row2' }, colorOrNone('Fill', el.fill, (v) => set({ fill: v }, true)), num('Border mm', 'thick', 0.1, el, 0)),
           h('div', { class: 'row2' }, h('label', { class: 'field' }, h('span', null, 'Border colour'), h('input', { class: 'input', type: 'color', value: el.stroke || '#000000', onchange: (e) => set({ stroke: e.target.value }, true) })),
             h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: !!el.dash, onchange: (e) => set({ dash: e.target.checked }, true) }), ' Dashed')),
+          h('h3', null, 'Border lines'),
+          h('div', { class: 'seg' }, h('button', { class: 'btn', 'aria-pressed': String(!el.lines), onclick: () => set({ lines: null }, true) }, 'One line'),
+            h('button', { class: 'btn', 'aria-pressed': String(!!el.lines), title: 'Outer, middle and inner lines, each with its own colour', onclick: () => set({ lines: defaultLines(el.stroke || '#000000') }, true) }, 'Three lines')),
+          el.lines ? ['outer', 'middle', 'inner'].map((k) => h('div', { class: 'row2' },
+            h('label', { class: 'field' }, h('span', null, k[0].toUpperCase() + k.slice(1) + ' line'), h('input', { class: 'input', type: 'color', value: el.lines[k].color || '#ffffff', onchange: (e) => { el.lines[k].color = e.target.value; save(); rerender(); } })),
+            h('label', { class: 'field' }, h('span', null, 'Width mm' + (k === 'middle' ? ', 0 = gap' : '')), h('input', { class: 'input', type: 'number', min: 0, step: 0.1, value: el.lines[k].color || k !== 'middle' ? el.lines[k].w : 0, onchange: (e) => { const v = Math.max(0, +e.target.value || 0); el.lines[k].w = v; if (k === 'middle' && v && !el.lines[k].color) el.lines[k].color = '#ffffff'; save(); rerender(); } })))) : null,
+          h('h3', null, '3-D (face, side and edge colours)'),
+          (() => { const v = h('b', null, el.depth ? el.depth + ' mm' : 'flat'); const r = h('input', { type: 'range', min: 0, max: 8, step: 0.2, value: el.depth || 0 }); r.oninput = () => { v.textContent = +r.value ? r.value + ' mm' : 'flat'; }; r.onchange = () => set({ depth: +r.value, side: el.side || '#6b6b6b' }, true); return h('label', { class: 'field' }, h('span', null, '3-D depth: ', v), r); })(),
+          el.depth ? h('label', { class: 'field' }, h('span', null, 'Side colour (face = fill, edge = border colour)'), h('input', { class: 'input', type: 'color', value: el.side || '#6b6b6b', onchange: (e) => set({ side: e.target.value }, true) })) : null,
           h('h3', null, 'Words inside'),
           (() => { const ta = h('textarea', { class: 'input', rows: 3, placeholder: 'Words inside the shape (fields in {curly brackets} work too)' }, el.text || ''); ta.oninput = () => { el.text = ta.value; save(); redrawSel(); }; return ta; })(),
           h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), sel('Font', el.font || 'sans', [['sans', 'Sans (Arial)'], ['serif', 'Serif (Georgia)'], ['mono', 'Typewriter']], (v) => set({ font: v }, true))),
