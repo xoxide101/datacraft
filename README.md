@@ -99,6 +99,10 @@ Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects
 - **Text box:** text with a background, border, corners, padding and top or middle alignment.
 - **Opacity** and **drop shadow** for every item, on screen and in print.
 
+### Dingbats and colour fills
+- **Dingbats** (the **Dingbat** tool and "Insert a dingbat…" in the text panel): about 300 classic symbols in groups (arrows, checks, stars and flowers, hands, shapes, hearts and cards, weather, office and signs, music and games, ornaments, numbers). They are text, so colour, size, shadow, outline and rotation all work.
+- **Colour fill for icons and see-through pictures:** turn a white icon black (or any colour) and keep its transparent background, put a tint over it, fill it with a two-colour gradient at any angle, or fill its shape with another picture. Reset brings back the original.
+
 ## How this was made
 
 This app is **vibe coded**: its author designed and directed it in plain conversation, feature by feature, and an AI coding assistant (Claude, by Anthropic) wrote the code.

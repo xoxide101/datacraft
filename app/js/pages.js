@@ -69,6 +69,52 @@
     return { layers: out, FW, FH };
   }
   const defaultLines = (base) => ({ outer: { color: base || '#222222', w: 1.2 }, middle: { color: '', w: 0.8 }, inner: { color: base || '#222222', w: 0.4 } });
+  // Dingbats: classic symbol characters in groups (the same set in every Craft app). They are text, so colour,
+  // size, shadow, outline, gradients and rotation all work on them. DINGBAT_FONT is a list of fonts that have them.
+  const DINGBAT_FONT = "'Segoe UI Symbol', 'Noto Sans Symbols 2', 'Noto Sans Symbols', 'Apple Symbols', 'DejaVu Sans', 'Arial Unicode MS', sans-serif";
+  const DINGBATS = [
+    ['Arrows', '← → ↑ ↓ ↔ ↕ ↖ ↗ ↘ ↙ ⇐ ⇒ ⇑ ⇓ ⇔ ➔ ➜ ➙ ➛ ➝ ➞ ➟ ➠ ➡ ➢ ➣ ➤ ➥ ➦ ➧ ➨ ➩ ➪ ➫ ➬ ➭ ➮ ➯ ➱ ➲ ➳ ➵ ➸ ➺ ➻ ➼ ➽ ➾ ↩ ↪ ↺ ↻ ⟲ ⟳'],
+    ['Checks and crosses', '✓ ✔ ✗ ✘ ☐ ☑ ☒ ✕ ✖ ✚ ✛ ✜ ✙ ✠ ✟ ✞ ✝'],
+    ['Stars and flowers', '★ ☆ ✦ ✧ ✩ ✪ ✫ ✬ ✭ ✮ ✯ ✰ ✱ ✲ ✳ ✴ ✵ ✶ ✷ ✸ ✹ ✺ ✻ ✼ ✽ ✾ ✿ ❀ ❁ ❂ ❃ ❄ ❅ ❆ ❇ ❈ ❉ ❊ ❋ ❖ ⁂ ※'],
+    ['Hands and faces', '☚ ☛ ☜ ☝ ☞ ☟ ✌ ✍ ☺ ☻ ☹ ☠'],
+    ['Shapes', '● ○ ◉ ◎ ◐ ◑ ◒ ◓ ■ □ ▪ ▫ ▬ ▭ ▮ ▯ ◆ ◇ ◈ ◊ ▲ △ ▼ ▽ ◀ ▶ ◢ ◣ ◤ ◥ ❍ ❏ ❐ ❑ ❒ ⬟ ⬢ ⬣ ⬤ ⬛ ⬜'],
+    ['Hearts and cards', '♥ ♡ ❤ ❥ ❦ ❧ ❣ ♠ ♣ ♦ ♤ ♧ ♢'],
+    ['Weather and nature', '☀ ☁ ☂ ☃ ☄ ☾ ☽ ❄ ⚡ ☘ ⚘ ☔ ☼ ☇ ☈'],
+    ['Office and signs', '✂ ✃ ✄ ✆ ✇ ✈ ✉ ✎ ✏ ✐ ✑ ✒ ☎ ☏ ⌚ ⌛ ⚑ ⚐ ⚠ ♻ ⚙ ⚖ ⚓ ☕ ♿ ⚕ ⚛ ☮ ☯ ☸ ⚜ ☢ ☣ ⌘ ⌨ ✉'],
+    ['Music and games', '♩ ♪ ♫ ♬ ♭ ♮ ♯ ⚀ ⚁ ⚂ ⚃ ⚄ ⚅ ♔ ♕ ♖ ♗ ♘ ♙ ♚ ♛ ♜ ♝ ♞ ♟'],
+    ['Ornaments and quotes', '❛ ❜ ❝ ❞ ❨ ❩ ❪ ❫ ❬ ❭ ❮ ❯ ❰ ❱ ❲ ❳ ❴ ❵ ❡ ❢ § ¶ † ‡ • ‣ ◦ ⁃ ⁌ ⁍ ☙ ❦ ⸙'],
+    ['Numbers', '① ② ③ ④ ⑤ ⑥ ⑦ ⑧ ⑨ ⑩ ❶ ❷ ❸ ❹ ❺ ❻ ❼ ❽ ❾ ❿ ➀ ➁ ➂ ➃ ➄ ➅ ➆ ➇ ➈ ➉ ➊ ➋ ➌ ➍ ➎ ➏ ➐ ➑ ➒ ➓'],
+  ].map(([name, chars]) => [name, chars.split(/\s+/).filter(Boolean)]);
+  // Colour fills for icons, pictures and text: the original, one solid colour (keeps transparency), a tint over the
+  // original, a two-colour gradient at an angle, or a picture inside the shape. Works on any picture with a see-through background.
+  const FILL_MODES = [['original', 'Original'], ['solid', 'One colour'], ['tint', 'Tint over it'], ['gradient', 'Gradient'], ['picture', 'Picture fill']];
+  function recolorCanvas(img, f, pattern) {
+    const c = document.createElement('canvas'); c.width = img.naturalWidth || img.width; c.height = img.naturalHeight || img.height;
+    const x = c.getContext('2d');
+    x.drawImage(img, 0, 0, c.width, c.height);
+    if (!f || f.mode === 'original') return c;
+    if (f.mode === 'tint') { x.globalCompositeOperation = 'source-atop'; x.globalAlpha = f.amount ?? 0.6; x.fillStyle = f.c1 || '#e8483f'; x.fillRect(0, 0, c.width, c.height); return c; }
+    x.globalCompositeOperation = 'source-in';
+    if (f.mode === 'gradient') {
+      const a = ((f.angle ?? 90) * Math.PI) / 180, cx = c.width / 2, cy = c.height / 2, r = Math.hypot(c.width, c.height) / 2;
+      const g = x.createLinearGradient(cx - Math.sin(a) * r, cy + Math.cos(a) * r, cx + Math.sin(a) * r, cy - Math.cos(a) * r);
+      g.addColorStop(0, f.c1 || '#e8483f'); g.addColorStop(1, f.c2 || '#3f8be8'); x.fillStyle = g;
+    } else if (f.mode === 'picture' && pattern) {
+      const k = Math.max(c.width / pattern.width, c.height / pattern.height);
+      x.drawImage(pattern, (c.width - pattern.width * k) / 2, (c.height - pattern.height * k) / 2, pattern.width * k, pattern.height * k); return c;
+    } else x.fillStyle = f.c1 || '#222222';
+    x.fillRect(0, 0, c.width, c.height);
+    return c;
+  }
+  const loadImg = (src) => new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+  // Colour fill for pictures with a see-through background, using the picture as a mask (the picture itself is unchanged).
+  function fxLayer(el) {
+    const f = el.fx, size = el.fit === 'cover' ? 'cover' : 'contain', mask = `url("${el.src}") center / ${size} no-repeat`;
+    const a = f.angle ?? 90, alpha = Math.round((f.amount ?? 0.6) * 255).toString(16).padStart(2, '0');
+    const bg = f.mode === 'gradient' ? `linear-gradient(${a}deg, ${f.c1}, ${f.c2})` : f.mode === 'picture' && f.src ? `url("${f.src}") center / cover no-repeat`
+      : f.mode === 'tint' ? `linear-gradient(${f.c1}${alpha}, ${f.c1}${alpha}), url("${el.src}") center / ${size} no-repeat` : f.c1;
+    return h('div', { style: { position: 'absolute', inset: 0, background: bg, WebkitMask: mask, mask } });
+  }
   // Drop shadow as a CSS filter (it follows the shape or the letters). Sizes in mm.
   const shadowCss = (sh) => (sh ? `drop-shadow(${sh.x ?? 0.6}mm ${sh.y ?? 0.6}mm ${sh.blur ?? 1}mm ${sh.color || 'rgba(0,0,0,.35)'})` : '');
   const roundMm = (el) => ((el.round || 0) / 100) * Math.min(el.w, el.h) / 2;
@@ -179,7 +225,8 @@
       const inner = design ? designText(el.text) : fillText(el.text, ctx, info);
       d.innerHTML = el.valign === 'middle' ? `<div>${inner}</div>` : inner;
     } else if (el.type === 'image') {
-      if (el.src) d.append(h('img', { src: el.src, alt: '', style: { objectFit: el.fit || 'contain' } }));
+      if (el.src && el.fx && el.fx.mode !== 'original') d.append(fxLayer(el));
+      else if (el.src) d.append(h('img', { src: el.src, alt: '', style: { objectFit: el.fit || 'contain' } }));
       else if (design) d.append(h('span', { class: 'ph-box' }, 'Image'));
     } else if (el.type === 'line') {
       const vertical = el.h > el.w;
@@ -443,6 +490,7 @@
       tool('Text', 'A text box. Type fixed text and {fields}.', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 8, text: 'New text', size: 10, align: 'left', font: 'sans', color: '#000000' })),
       tool('Image / logo', 'A picture from your computer', () => addEl({ type: 'image', x: M, y: M, w: 40, h: 20, src: '', fit: 'contain' })),
       tool('Line', 'A horizontal line', () => addEl({ type: 'line', x: M, y: M + 60, w: W - 2 * M, h: 2, thick: 0.3, color: '#000000' })),
+      tool('Dingbat', 'A symbol (arrows, stars, checks, hands, ornaments…) you can size and colour like text', () => addEl({ type: 'text', x: M, y: M + 40, w: 20, h: 20, text: '★', size: 36, align: 'center', font: 'sans', color: '#000000', valign: 'middle' })),
       tool('Text box', 'Words in a box that wrap, with a border, background, padding and shadow', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 25, text: 'Type here. Words wrap inside the box.', size: 10, align: 'left', font: 'sans', color: '#000000', border: 0.3, stroke: '#000000', pad: 2, round: 0 })),
       tool('Shape', 'A box, circle, triangle, diamond, pentagon, hexagon, octagon, star or arrow, with sharp or round corners and words inside', () => addEl({ type: 'box', shape: 'rect', x: M, y: M + 60, w: 60, h: 25, thick: 0.3, stroke: '#000000', fill: '', round: 0 })),
       tool('Table', page.elements.some((e) => e.type === 'table') ? 'A page can have one table' : 'A table of records that flows onto more pages',
@@ -555,7 +603,12 @@
           ta.value = ta.value.slice(0, a) + tok + ta.value.slice(b); el.text = ta.value; save(); redrawSel();
           ta.focus(); ta.setSelectionRange(a + tok.length, a + tok.length); ins.value = '';
         } }, h('option', { value: '' }, 'Insert a field…'), placeholders(page).map((p) => h('option', { value: p }, p)));
-        props.append(h('label', { class: 'field' }, h('span', null, 'Text'), ta), ins,
+        const dingSel = h('select', { class: 'input', onchange: () => {
+          if (!dingSel.value) return;
+          const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a, ch = dingSel.value;
+          ta.value = ta.value.slice(0, a) + ch + ta.value.slice(b); el.text = ta.value; save(); redrawSel(); dingSel.value = '';
+        } }, h('option', { value: '' }, 'Insert a dingbat…'), DINGBATS.map(([n, list]) => h('optgroup', { label: n }, list.map((ch) => h('option', { value: ch }, ch)))));
+        props.append(h('label', { class: 'field' }, h('span', null, 'Text'), ta), ins, dingSel,
           h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), sel('Font', el.font, [['sans', 'Sans (Arial)'], ['serif', 'Serif (Georgia)'], ['mono', 'Typewriter']], (v) => set({ font: v }))),
           h('div', { class: 'seg' },
             h('button', { class: 'btn', 'aria-pressed': String(!!el.bold), onclick: () => set({ bold: !el.bold }, true) }, h('b', null, 'B')),
@@ -572,6 +625,18 @@
         } });
         props.append(fileIn, h('button', { class: 'btn', onclick: () => fileIn.click() }, el.src ? 'Replace image…' : 'Choose image…'),
           sel('Fit', el.fit, [['contain', 'Fit inside the box'], ['cover', 'Fill the box (may crop)']], (v) => set({ fit: v }, true)));
+        if (el.src) {
+          const f = el.fx || { mode: 'original', c1: '#000000', c2: '#3f8be8', angle: 90, amount: 0.6 }, fx = (patch) => set({ fx: { ...f, ...patch } }, true);
+          const picIn = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: () => { const file = picIn.files[0]; if (!file) return; const r = new FileReader(); r.onload = () => fx({ mode: 'picture', src: r.result }); r.readAsDataURL(file); } });
+          props.append(h('h3', null, 'Colour fill (icons and see-through pictures)'), picIn,
+            h('div', { class: 'seg', style: { flexWrap: 'wrap' } }, FILL_MODES.map(([v, n]) => h('button', { class: 'btn', 'aria-pressed': String(f.mode === v), onclick: () => (v === 'picture' && !f.src ? picIn.click() : fx({ mode: v })) }, n))),
+            ['solid', 'tint', 'gradient'].includes(f.mode) ? h('div', { class: 'row2' },
+              h('label', { class: 'field' }, h('span', null, f.mode === 'gradient' ? 'From' : 'Colour'), h('input', { class: 'input', type: 'color', value: f.c1, onchange: (e) => fx({ c1: e.target.value }) })),
+              f.mode === 'gradient' ? h('label', { class: 'field' }, h('span', null, 'To'), h('input', { class: 'input', type: 'color', value: f.c2, onchange: (e) => fx({ c2: e.target.value }) })) : null) : null,
+            f.mode === 'gradient' ? (() => { const v = h('b', null, (f.angle ?? 90) + '°'); const r = h('input', { type: 'range', min: 0, max: 359, value: f.angle ?? 90 }); r.oninput = () => { v.textContent = r.value + '°'; }; r.onchange = () => fx({ angle: +r.value }); return h('label', { class: 'field' }, h('span', null, 'Gradient angle: ', v), r); })() : null,
+            f.mode === 'tint' ? (() => { const v = h('b', null, Math.round((f.amount ?? 0.6) * 100) + '%'); const r = h('input', { type: 'range', min: 5, max: 100, value: Math.round((f.amount ?? 0.6) * 100) }); r.oninput = () => { v.textContent = r.value + '%'; }; r.onchange = () => fx({ amount: +r.value / 100 }); return h('label', { class: 'field' }, h('span', null, 'How strong: ', v), r); })() : null,
+            f.mode === 'picture' ? h('button', { class: 'btn', onclick: () => picIn.click() }, 'Choose another fill picture…') : null);
+        }
       } else if (el.type === 'line') {
         props.append(h('div', { class: 'row2' }, num('Thickness mm', 'thick', 0.1, el, 0.1),
           h('label', { class: 'field' }, h('span', null, 'Colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', oninput: (e) => set({ color: e.target.value }) }))),

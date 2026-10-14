@@ -122,3 +122,5 @@ All built on 2026-10-13.
 **2026-10-14:** Page designer: shapes with rounded corners and words inside, text boxes, drop shadow, opacity.
 
 **2026-10-14:** Shapes can be 3-D in three colours (face = fill, side = `side`, edge = border) and have one border line or three (`lines`: outer, middle, inner; a middle line with no colour leaves a gap). `shapeLayers()` lists what to draw, back to front; it is the same code in each Craft app.
+
+**2026-10-14:** Dingbats (`DINGBATS`, `DINGBAT_FONT`) and colour fills for see-through pictures (`FILL_MODES`: original, solid, tint, gradient, picture). Pictures are recoloured with a CSS mask of the picture over a colour, gradient or picture (`fxLayer`); the file is unchanged.
