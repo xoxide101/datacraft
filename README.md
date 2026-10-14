@@ -86,3 +86,7 @@ Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects
 
 - [sql.js](https://github.com/sql-js/sql.js) 1.10.3 (SQLite for the browser, MIT)
 - [Papa Parse](https://www.papaparse.com/) 5.4.1 (MIT)
+
+## Development notes
+
+How the app is built, the decisions behind it, and known pitfalls: see [NOTES.md](NOTES.md).
