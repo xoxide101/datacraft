@@ -40,7 +40,7 @@ All four Craft apps use the same `craft-titlebar.js` code: in SiteCraft and Data
   - file name and save state
   - **Search commands (Alt+Q)** over menus and ribbon, with recently used commands
   - info chips, theme and help
-- **`CraftRibbon`:** tabs of labelled buttons in named groups, one color per tab, collapse with ⌃ or a double-click; remembers the last tab.
+- **`CraftRibbon`:** tabs of labelled buttons in named groups (or Office-style icon-only buttons: `{ row: [...] }` with `iconOnly: true`, `'|'` for a divider), one color per tab, collapse with ⌃ or a double-click; remembers the last tab.
 - **`CraftIcons`:** the shared icon set.
 
 Ribbon buttons reuse the apps' own menu commands (looked up by label), so a button and its menu item always do the same thing. Each app has a matching logo in `docs/logo.svg` (also used as the browser-tab icon).

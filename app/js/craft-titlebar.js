@@ -173,12 +173,17 @@ button.ctb-chip:hover { background: rgba(255,255,255,.3); }
 .crb-group:last-child { border-right: 0; }
 .crb-gbody { display: flex; align-items: flex-start; gap: 3px; flex: 1; }
 .crb-col { display: flex; flex-direction: column; gap: 1px; }
+.crb-row { display: flex; align-items: center; gap: 1px; min-height: 27px; }
+.crb-sep { flex: none; width: 1px; height: 18px; margin: 0 4px; background: var(--line, #d5d9e1); }
 .crb-label { text-align: center; font-size: 10.5px; color: var(--muted, #667085); padding: 3px 0 2px; white-space: nowrap; }
 .crb-big, .crb-small { border: 0; background: transparent; cursor: pointer; color: var(--fg, #1d2330); font: inherit; }
 .crb-big { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 56px; max-width: 80px; padding: 5px 5px 4px; border-radius: 8px; font-size: 11.5px; line-height: 1.15; text-align: center; }
 .crb-big svg { width: 28px; height: 28px; flex: none; }
 .crb-small { display: flex; align-items: center; gap: 6px; height: 25px; padding: 0 8px 0 5px; border-radius: 5px; font-size: 12px; white-space: nowrap; }
 .crb-small svg { width: 17px; height: 17px; flex: none; }
+.crb-icon { position: relative; justify-content: center; width: 28px; height: 27px; padding: 0; }
+.crb-big svg.ink, .crb-small svg.ink, .crb-small.crb-icon svg { stroke: currentColor; }
+.crb-small.crb-icon svg .hue { stroke: var(--hue); }
 .crb-big svg, .crb-small svg { fill: none; stroke: var(--hue); stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
 .crb-big svg .fill, .crb-small svg .fill { fill: var(--hue-soft); }
 .crb-big:hover, .crb-small:hover { background: var(--hue-soft); }
@@ -465,7 +470,7 @@ button.ctb-chip:hover { background: rgba(255,255,255,.3); }
   // =====================================================================
   // Ribbon: tabs of labelled buttons in named groups
   //   tabs: [{ id, label, hue, soft, onSelect, show, groups: [[label, [item…]]] }]
-  //   item: { label, icon, run, big, title, key, pressed: () => bool, disabled: () => bool } | { col: [item…] } | { el: element }
+  //   item: { label, icon, run, big, iconOnly, title, key, pressed: () => bool, disabled: () => bool } | { col: [item…] } | { row: [item… or '|'] } | { el: element }
   // =====================================================================
   window.CraftRibbon = function (cfg) {
     const key = (cfg.storageKey || 'craft');
@@ -477,10 +482,13 @@ button.ctb-chip:hover { background: rgba(255,255,255,.3); }
     const isSoft = (hue) => hue + '1f';
     function makeItem(it, panel) {
       if (it.col) { const c = mk('div', 'crb-col'); it.col.forEach((x) => c.append(makeItem(x, panel))); return c; }
+      // A row of buttons side by side (usually icon-only); '|' draws a divider.
+      if (it.row) { const r = mk('div', 'crb-row'); it.row.forEach((x) => r.append(x === '|' ? mk('span', 'crb-sep') : makeItem(x, panel))); return r; }
       if (it.el) { const w = mk('div', 'crb-el'); w.append(typeof it.el === 'function' ? it.el() : it.el); return w; }
-      const b = mk('button', it.big ? 'crb-big' : 'crb-small'); b.type = 'button';
+      const b = mk('button', it.big ? 'crb-big' : it.iconOnly ? 'crb-small crb-icon' : 'crb-small'); b.type = 'button';
       b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${it.icon || ''}</svg>`;
-      if (it.big) b.append(mk('span', null, it.label)); else b.append(document.createTextNode(it.label));
+      // Icon-only buttons (bold, italic, alignment…) show their name as a tooltip, like Office.
+      if (it.big) b.append(mk('span', null, it.label)); else if (it.iconOnly) b.setAttribute('aria-label', it.label); else b.append(document.createTextNode(it.label));
       b.title = (it.title || it.label) + (it.key ? ` (${it.key})` : '');
       b.addEventListener('mousedown', (e) => e.preventDefault());
       b.addEventListener('click', () => it.run(b));
