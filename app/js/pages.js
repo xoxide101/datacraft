@@ -217,6 +217,16 @@
   }
   // Backgrounds print: tell the browser to keep them.
   if (!document.getElementById('dc-print-bg')) { const st = document.createElement('style'); st.id = 'dc-print-bg'; st.textContent = '.ppage, .ppage *, .dpage, .dpage * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }'; document.head.append(st); }
+  // Fonts: the three classic choices (sans, serif, typewriter) plus the bundled fonts in fonts/ and any added with
+  // "More fonts…" (kept in the project's settings, so the pages look the same on every computer).
+  const LEGACY_FONT = { sans: 'Arial', serif: 'Georgia', mono: 'Courier New' }, FONT_KEY = { Arial: 'sans', Georgia: 'serif', 'Courier New': 'mono' };
+  const fontCss = (k) => FONTS[k] || `'${k}', ${({ Serif: 'serif', Monospace: 'monospace', Handwriting: 'cursive' })[((window.CRAFT_FONTS || []).find(([n]) => n === k) || [])[1]] || 'sans-serif'}`;
+  const SYSTEM_FONTS = ['Arial', 'Georgia', 'Courier New', 'Times New Roman', 'Verdana', 'Tahoma', 'Trebuchet MS', 'Impact'];
+  const fontPick = (label, value, on) => { const s = h('select', { class: 'input', onchange: (e) => on(e.target.value) }); s.innerHTML = window.CraftFonts ? CraftFonts.optionsHtml(LEGACY_FONT[value || 'sans'] || value, { system: SYSTEM_FONTS, toValue: (f) => FONT_KEY[f] || f })
+    : Object.entries(LEGACY_FONT).map(([k, n]) => `<option value="${k}" ${k === (value || 'sans') ? 'selected' : ''}>${n}</option>`).join(''); return h('label', { class: 'field' }, h('span', null, label), s); };
+  let fontsRestoring = false;
+  const projectFonts = () => { if (!window.CraftFonts) return; try { const f = DC.project && DC.project.settings && DC.project.settings.fonts; if (f) { fontsRestoring = true; CraftFonts.restore(JSON.parse(f)); } } catch (e) {} fontsRestoring = false; };
+  if (window.CraftFonts) CraftFonts.onAdd(() => { if (!fontsRestoring && DC.project) DC.setSettings({ fonts: JSON.stringify(CraftFonts.saved()) }); });
   const SPECIALS = ['Today', 'Time', 'Now', 'Page', 'Pages', 'Count', 'Subtotal', 'TaxRate', 'Tax', 'Total'];
   // Date and time (the same in every Craft app): Word-style formats and the Insert › Date and time dialog.
   // Static = the words are typed in once. Dynamic = a field that shows the current date or time whenever it is
@@ -498,7 +508,7 @@
     if (el.opacity != null && el.opacity < 1) d.style.opacity = el.opacity; // see-through, so items can overlap
     if (el.shadow) d.style.filter = shadowCss(el.shadow);
     if (el.type === 'text') {
-      Object.assign(d.style, { fontSize: el.size + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'left', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, background: el.fill || 'transparent' });
+      Object.assign(d.style, { fontSize: el.size + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'left', color: el.color || '#000', fontFamily: fontCss(el.font || 'sans'), background: el.fill || 'transparent' });
       if (el.paint) putPaint(d, el.paint);
       if (el.fill || el.paint) d.style.padding = '1.2mm 2mm';
       if (el.pad != null) d.style.padding = el.pad + 'mm';
@@ -529,7 +539,7 @@
       if (el.text) {
         const [cx, cy, tw] = shapeTextBox(shape), pad = el.pad ?? 1.5;
         const t = h('div', { class: 'shape-text', style: { position: 'absolute', left: (FW * cx - (FW * tw) / 2 + pad) + 'mm', width: (FW * tw - 2 * pad) + 'mm', top: el.valign === 'top' && shape === 'rect' ? pad + 'mm' : (FH * cy) + 'mm', transform: el.valign === 'top' && shape === 'rect' ? 'none' : 'translateY(-50%)',
-          fontSize: (el.size || 10) + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'center', color: el.color || '#000', fontFamily: FONTS[el.font] || FONTS.sans, lineHeight: 1.25, whiteSpace: 'pre-wrap', wordWrap: 'break-word' } });
+          fontSize: (el.size || 10) + 'pt', fontWeight: el.bold ? '700' : '400', fontStyle: el.italic ? 'italic' : 'normal', textAlign: el.align || 'center', color: el.color || '#000', fontFamily: fontCss(el.font || 'sans'), lineHeight: 1.25, whiteSpace: 'pre-wrap', wordWrap: 'break-word' } });
         t.innerHTML = design ? designText(el.text) : fillText(el.text, ctx, info);
         d.append(t);
       }
@@ -601,6 +611,7 @@
     return m;
   }
   function renderDoc(page, rid) {
+    projectFonts();
     const ctx = context(page, rid);
     const [W, H] = dims(page);
     const T = page.elements.find((e) => e.type === 'table');
@@ -719,6 +730,7 @@
 
   // ---------- Designer view ----------
   function pageView(root, id, st) {
+    projectFonts();
     const stored = DC.project.schema.pages.find((p) => p.id === id);
     if (!stored) { root.append(h('p', { class: 'empty' }, 'This page no longer exists.')); return; }
     if (!st.page || st.page.id !== id) st.page = JSON.parse(JSON.stringify(stored));
@@ -911,7 +923,7 @@
           ta.focus(); ta.setSelectionRange(a + tok.length, a + tok.length);
         } }, 'Date and time…');
         props.append(h('label', { class: 'field' }, h('span', null, 'Text'), ta), ins, dingSel, dateBtn,
-          h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), sel('Font', el.font, [['sans', 'Sans (Arial)'], ['serif', 'Serif (Georgia)'], ['mono', 'Typewriter']], (v) => set({ font: v }))),
+          h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), fontPick('Font', el.font, (v) => set({ font: v }))),
           h('div', { class: 'seg' },
             h('button', { class: 'btn', 'aria-pressed': String(!!el.bold), onclick: () => set({ bold: !el.bold }, true) }, h('b', null, 'B')),
             h('button', { class: 'btn', 'aria-pressed': String(!!el.italic), onclick: () => set({ italic: !el.italic }, true) }, h('i', null, 'I')),
@@ -965,7 +977,7 @@
           el.depth ? h('label', { class: 'field' }, h('span', null, 'Side colour (face = fill, edge = border colour)'), h('input', { class: 'input', type: 'color', value: el.side || '#6b6b6b', onchange: (e) => set({ side: e.target.value }, true) })) : null,
           h('h3', null, 'Words inside'),
           (() => { const ta = h('textarea', { class: 'input', rows: 3, placeholder: 'Words inside the shape (fields in {curly brackets} work too)' }, el.text || ''); ta.oninput = () => { el.text = ta.value; save(); redrawSel(); }; return ta; })(),
-          h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), sel('Font', el.font || 'sans', [['sans', 'Sans (Arial)'], ['serif', 'Serif (Georgia)'], ['mono', 'Typewriter']], (v) => set({ font: v }, true))),
+          h('div', { class: 'row2' }, num('Size (pt)', 'size', 0.5, el, 4), fontPick('Font', el.font || 'sans', (v) => set({ font: v }, true))),
           h('div', { class: 'seg' },
             h('button', { class: 'btn', 'aria-pressed': String(!!el.bold), onclick: () => set({ bold: !el.bold }, true) }, h('b', null, 'B')),
             h('button', { class: 'btn', 'aria-pressed': String(!!el.italic), onclick: () => set({ italic: !el.italic }, true) }, h('i', null, 'I')),

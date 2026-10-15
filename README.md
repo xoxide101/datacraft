@@ -97,6 +97,7 @@ Chrome or Edge (recent versions). Firefox and Safari work too, but keep projects
 
 - **Date and time** (Insert menu and the Text tab): 16 formats including stamps like `14 OCT 2026`, with words before and after. **Fixed** types it in once; **Update automatically** makes a field that always shows the current date or time: it becomes a `{Date:format}` field, filled in when the page is shown or printed (also `{Time}` and `{Now}`).
 - **Backgrounds and fills** in the page designer: the page background, text boxes, shapes and tables can be a colour, gradient (straight or round, any angle), **pattern** or **picture** (fill, fit, stretch or tile, with strength). 33 patterns, including dithers, halftone, stripes, grid, crosshatch, waves, checks, dots, bricks, diamonds, scales, stars and hearts, each with its own ink and background colour and size. Backgrounds now print (they used to be left off by the browser).
+- **Fonts:** 112 free fonts come with the app, in groups: sans serif, serif, handwriting, display (including the Bitcount pixel fonts), monospace and symbols (including the Yarndings knitting fonts and Noto Sans Symbols). **More fonts…** at the bottom of every font menu searches about 1,600 more free Google Fonts with live previews; the one you pick is downloaded once (that needs the internet) and kept in your project, so your pages print the same on every computer.
 - **Zoom slider in the status bar** (like Word): −, a slider with 100% in the middle, +, the percentage (click to type one) and Fit (at the bottom of the page designer, 25% to 300%). Double-click the slider for 100%.
 - **Every slider has a box beside it** to type the exact value (Enter or Tab to apply).
 - **Shapes:** box, circle, triangle, diamond, pentagon, hexagon, octagon, star and arrow with **corners from sharp to round** and **words inside**, including `{fields}` (a star that says PAID, for example). Lines have square or round ends and can be dashed. **3-D** in three colours (face, side and edge) and borders of **one line or three** (outer, middle and inner, each in its own colour, with an optional gap).
@@ -120,6 +121,7 @@ Open-source libraries it uses are listed with their licences in Credits.
 
 ## Credits
 
+- Fonts from Google Fonts under the SIL Open Font License or the Apache License, stored in `app/fonts/` (run `python app/fetch_fonts.py` to download them again).
 - [sql.js](https://github.com/sql-js/sql.js) 1.10.3 (SQLite for the browser, MIT)
 - [Papa Parse](https://www.papaparse.com/) 5.4.1 (MIT)
 
