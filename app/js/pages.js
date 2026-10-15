@@ -787,7 +787,7 @@
       tool('Text', 'A text box. Type fixed text and {fields}.', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 8, text: 'New text', size: 10, align: 'left', font: 'sans', color: '#000000' })),
       tool('Image / logo', 'A picture from your computer', () => addEl({ type: 'image', x: M, y: M, w: 40, h: 20, src: '', fit: 'contain' })),
       tool('Line', 'A horizontal line', () => addEl({ type: 'line', x: M, y: M + 60, w: W - 2 * M, h: 2, thick: 0.3, color: '#000000' })),
-      tool('Dingbat', 'A symbol (arrows, stars, checks, hands, ornaments…) you can size and colour like text', () => addEl({ type: 'text', x: M, y: M + 40, w: 20, h: 20, text: '★', size: 36, align: 'center', font: 'sans', color: '#000000', valign: 'middle' })),
+      tool('Symbol / emoji', 'A dingbat, knitting symbol or emoji you can size and colour like text', () => CraftSymbols.open({ onPick: (r) => addEl({ type: 'text', x: M, y: M + 40, w: 20, h: 20, text: r.char, size: 36, align: 'center', font: r.font || (r.kind === 'emoji' ? 'sans' : 'Noto Sans Symbols 2'), color: '#000000', valign: 'middle' }) })),
       tool('Text box', 'Words in a box that wrap, with a border, background, padding and shadow', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 25, text: 'Type here. Words wrap inside the box.', size: 10, align: 'left', font: 'sans', color: '#000000', border: 0.3, stroke: '#000000', pad: 2, round: 0 })),
       tool('Shape', 'A box, circle, triangle, diamond, pentagon, hexagon, octagon, star or arrow, with sharp or round corners and words inside', () => addEl({ type: 'box', shape: 'rect', x: M, y: M + 60, w: 60, h: 25, thick: 0.3, stroke: '#000000', fill: '', round: 0 })),
       tool('Table', page.elements.some((e) => e.type === 'table') ? 'A page can have one table' : 'A table of records that flows onto more pages',
@@ -909,11 +909,14 @@
           ta.value = ta.value.slice(0, a) + tok + ta.value.slice(b); el.text = ta.value; save(); redrawSel();
           ta.focus(); ta.setSelectionRange(a + tok.length, a + tok.length); ins.value = '';
         } }, h('option', { value: '' }, 'Insert a field…'), placeholders(page).map((p) => h('option', { value: p }, p)));
-        const dingSel = h('select', { class: 'input', onchange: () => {
-          if (!dingSel.value) return;
-          const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a, ch = dingSel.value;
-          ta.value = ta.value.slice(0, a) + ch + ta.value.slice(b); el.text = ta.value; save(); redrawSel(); dingSel.value = '';
-        } }, h('option', { value: '' }, 'Insert a dingbat…'), DINGBATS.map(([n, list]) => h('optgroup', { label: n }, list.map((ch) => h('option', { value: ch }, ch)))));
+        // Symbols and emoji go in where the cursor is; a symbol that needs its own font (knitting symbols, one-colour emoji) sets the font when the box is empty.
+        const dingSel = h('button', { class: 'btn outline', type: 'button', title: 'Dingbats, knitting symbols and emoji', onclick: () => {
+          let a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
+          CraftSymbols.open({ onPick: (r) => {
+            const empty = !ta.value.trim(); ta.value = ta.value.slice(0, a) + r.char + ta.value.slice(b); el.text = ta.value; a += r.char.length; b = a;
+            if (empty && r.font) set({ font: r.font }, true); else { save(); redrawSel(); }
+          } });
+        } }, 'Symbols and emoji…');
         const dateBtn = h('button', { class: 'btn outline', type: 'button', title: 'Fixed words, or a field that shows the date or time whenever the page is shown or printed', onclick: async () => {
           const a = ta.selectionStart ?? ta.value.length, b = ta.selectionEnd ?? a;
           const r = await dateDialog({ dynamicNote: 'Shows the date or time whenever the page is shown or printed.' });

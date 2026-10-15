@@ -34,11 +34,11 @@ FONTS = [
         'Cinzel Decorative', 'Rampart One', 'Bitcount', 'Bitcount Single', 'Bitcount Grid Single', 'Bitcount Grid Double',
         'Bitcount Prop Single', 'Bitcount Prop Double']],
     *[(f, 'Monospace') for f in ['Roboto Mono', 'Courier Prime', 'Space Mono', 'JetBrains Mono', 'IBM Plex Mono', 'Fira Code']],
-    *[(f, 'Symbols') for f in ['Yarndings 12', 'Yarndings 20', 'Yarndings 12 Charted', 'Yarndings 20 Charted', 'Noto Sans Symbols 2']],
+    *[(f, 'Symbols') for f in ['Yarndings 12', 'Yarndings 20', 'Yarndings 12 Charted', 'Yarndings 20 Charted', 'Noto Sans Symbols 2', 'Noto Emoji']],
 ]
 EXTRA = sys.argv[2:]  # an app can ask for more families (for example its own interface font)
 KEEP = {"latin", "latin-ext"}
-SYMBOL_SETS = {"symbols", "math"}  # kept for the symbol fonts only
+SYMBOL_SETS = {"symbols", "math", "braille", "mayan-numerals", "emoji"}  # kept for the symbol and emoji fonts only
 GROUP_CODE = {'Sans Serif': 'S', 'Serif': 'E', 'Display': 'D', 'Handwriting': 'H', 'Monospace': 'M'}
 UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 
@@ -78,13 +78,16 @@ local_css, written = [], {}
 for family, group in families:
     css = get("https://fonts.googleapis.com/css2?family=" + spec(family) + "&display=swap").decode("utf-8")
     keep = KEEP | (SYMBOL_SETS if group == 'Symbols' else set())
-    for subset, block in re.findall(r"/\* ([\w-]+) \*/\s*(@font-face \{.*?\})", css, re.S):
-        if subset not in keep:
+    pieces = re.findall(r"/\* ([\w\-\[\]]+) \*/\s*(@font-face \{.*?\})", css, re.S)
+    if not pieces:  # some big fonts (Noto Emoji) come in pieces with no names
+        pieces = [(f"[{i}]", b) for i, b in enumerate(re.findall(r"@font-face \{.*?\}", css, re.S))]
+    for subset, block in pieces:
+        if subset not in keep and not (group == "Symbols" and re.fullmatch(r"\[\d+\]", subset)):  # big fonts come in numbered pieces
             continue
         weight = re.search(r"font-weight: ([\d ]+);", block).group(1).replace(" ", "-")
         style = re.search(r"font-style: (\w+);", block).group(1)
         url = re.search(r"url\((https://[^)]+)\)", block).group(1)
-        name = f"{family.replace(' ', '')}-{weight}{'-italic' if style == 'italic' else ''}-{subset}.woff2"
+        name = f"{family.replace(' ', '')}-{weight}{'-italic' if style == 'italic' else ''}-{subset.strip('[]')}.woff2"
         cached = cache / (re.sub(r"[^\w.-]", "_", url.split("/s/")[-1]))
         if not cached.exists():
             cached.write_bytes(get(url))
@@ -108,4 +111,11 @@ for f in sorted(meta.values(), key=lambda m: m.get("popularity", 99999)):
     rows.append(f"{f['family']}|{GROUP_CODE.get(f['category'], 'S')}|{'b' if '700' in styles else ''}{'i' if '400i' in styles else ''}")
 (out / "catalog.js").write_text("/* Open-licence Google Fonts families for the \"More fonts…\" browser: name|group|b (has bold) i (has italic), most popular first. */\n"
                                 "window.CRAFT_FONT_CATALOG = " + json.dumps("\n".join(rows)) + ";\n", encoding="utf-8")
+try:  # the Symbols picker's data (needs fontTools: pip install fonttools)
+    import importlib.util
+    spec_ = importlib.util.spec_from_file_location("make_symbols", pathlib.Path(__file__).parent / "make_symbols.py")
+    if spec_ and pathlib.Path(spec_.origin).exists():
+        sys.argv = [sys.argv[0], str(root)]; importlib.util.module_from_spec(spec_); spec_.loader.exec_module(importlib.util.module_from_spec(spec_))
+except Exception as e:
+    print("fonts/symbols.js not rebuilt:", e)
 print(f"Wrote {len(local_css)} @font-face rules, {len(written)} font files and a catalog of {len(rows)} families to {out}")
