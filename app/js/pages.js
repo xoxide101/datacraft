@@ -5,6 +5,42 @@
   const PX = 96 / 25.4; // CSS px per mm
   const SIZES = { letter: [215.9, 279.4, 'US Letter'], a4: [210, 297, 'A4'], legal: [215.9, 355.6, 'US Legal'] };
   const FONTS = { sans: 'Arial, Helvetica, sans-serif', serif: 'Georgia, "Times New Roman", serif', mono: '"Courier New", Consolas, monospace' };
+  // Status-bar zoom (the same in every Craft app, like Word's): −, a slider with 100% in the middle (left half
+  // 10–100%, right half 100% up to the most), +, the percentage (click to type) and Fit. Double-click the slider for 100%.
+  // get() and set(percent) talk to the app; fit() fits the page. Returns { el, update }.
+  function zoomBar({ get, set, fit, min = 10, max = 500 }) {
+    if (!document.getElementById('zb-style')) {
+      const st = document.createElement('style'); st.id = 'zb-style';
+      st.textContent = '.zb{display:inline-flex;align-items:center;gap:4px;margin-left:auto;flex:none;font-size:12px}'
+        + '.zb button{border:0;background:none;color:inherit;cursor:pointer;width:22px;height:22px;border-radius:5px;font:inherit;font-size:15px;line-height:1;display:grid;place-items:center;padding:0}'
+        + '.zb button:hover{background:var(--line,rgba(0,0,0,.1))}.zb .zb-fit{width:auto;padding:0 6px;font-size:12px}'
+        + '.zb input[type=range]{width:120px;height:4px;margin:0 2px;accent-color:var(--accent,#2f6fdd);cursor:pointer;background:linear-gradient(90deg,transparent calc(50% - 1px),currentColor calc(50% - 1px),currentColor calc(50% + 1px),transparent calc(50% + 1px))}'
+        + '.zb .zb-pct{width:50px;height:22px;border:1px solid transparent;border-radius:5px;background:none;color:inherit;text-align:center;font:inherit;font-size:12px;font-variant-numeric:tabular-nums;padding:0}'
+        + '.zb .zb-pct:hover,.zb .zb-pct:focus{border-color:var(--line,#bbb);background:var(--panel,#fff);outline:none}@media(max-width:700px){.zb input[type=range]{width:70px}}';
+      document.head.append(st);
+    }
+    // slider position 0..1000 <-> percent: the middle (500) is always 100%
+    const toPct = (v) => (v <= 500 ? min + (100 - min) * (v / 500) : 100 + (max - 100) * ((v - 500) / 500));
+    const toPos = (p) => (p <= 100 ? ((p - min) / (100 - min)) * 500 : 500 + ((p - 100) / (max - 100)) * 500);
+    const el = document.createElement('span'); el.className = 'zb'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Zoom'); el.dataset.rtSkip = '1';
+    el.innerHTML = '<button type="button" class="zb-out" title="Zoom out" aria-label="Zoom out">−</button><input type="range" min="0" max="1000" step="1" aria-label="Zoom" title="Zoom (double-click for 100%)">'
+      + '<button type="button" class="zb-in" title="Zoom in" aria-label="Zoom in">+</button><input class="zb-pct" type="text" inputmode="numeric" aria-label="Zoom percent" title="Type a zoom percent"><button type="button" class="zb-fit" title="Fit the whole page in the window">Fit</button>';
+    const [out, r, inn, pct, fitB] = [el.querySelector('.zb-out'), el.querySelector('input[type=range]'), el.querySelector('.zb-in'), el.querySelector('.zb-pct'), el.querySelector('.zb-fit')];
+    const clamp = (p) => Math.max(min, Math.min(max, Math.round(p)));
+    const go = (p) => { set(clamp(p)); update(); };
+    // + and − step through the usual zoom levels
+    const STEPS = [10, 25, 33, 50, 67, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300, 400, 500, 600, 800].filter((s) => s >= min && s <= max);
+    out.onclick = () => { const c = get(); go([...STEPS].reverse().find((s) => s < c - 0.5) ?? min); };
+    inn.onclick = () => { const c = get(); go(STEPS.find((s) => s > c + 0.5) ?? max); };
+    r.oninput = () => { let p = toPct(+r.value); if (Math.abs(+r.value - 500) < 12) p = 100; go(p); }; // snaps to 100% near the middle
+    r.ondblclick = () => go(100);
+    pct.onfocus = () => pct.select();
+    pct.onkeydown = (e) => { e.stopPropagation(); if (e.key === 'Enter') { pct.blur(); } if (e.key === 'Escape') { update(); pct.blur(); } };
+    pct.onchange = () => { const v = parseFloat(pct.value); if (isFinite(v)) go(v); else update(); };
+    fitB.onclick = () => { fit(); update(); };
+    function update() { const p = get(); if (!isFinite(p)) return; r.value = Math.round(toPos(Math.max(min, Math.min(max, p)))); if (document.activeElement !== pct) pct.value = Math.round(p) + '%'; }
+    return { el, update };
+  }
   const SPECIALS = ['Today', 'Time', 'Now', 'Page', 'Pages', 'Count', 'Subtotal', 'TaxRate', 'Tax', 'Total'];
   // Date and time (the same in every Craft app): Word-style formats and the Insert › Date and time dialog.
   // Static = the words are typed in once. Dynamic = a field that shows the current date or time whenever it is
@@ -579,7 +615,13 @@
     canvasWrap.append(dpage);
     const fitZoom = () => Math.min(1.5, Math.max(0.35, (canvasWrap.clientWidth - 48) / (W * PX)));
     st.zoom = st.zoom || 0;
-    const applyZoom = () => { dpage.style.zoom = st.zoom || fitZoom(); };
+    const applyZoom = () => { dpage.style.zoom = st.zoom || fitZoom(); zb.update(); };
+    // zoom at the bottom of the page area, like a status bar: 100% = real size on screen
+    const zb = zoomBar({ get: () => (st.zoom || fitZoom()) * 100, set: (pct) => { st.zoom = pct / 100; dpage.style.zoom = st.zoom; }, fit: () => { st.zoom = 0; applyZoom(); }, min: 25, max: 300 });
+    canvasWrap.append(h('div', { class: 'dc-zoom' }, zb.el));
+    const fitHeight = () => { const top = designer.getBoundingClientRect().top; if (top > 0 && innerWidth > 1100) designer.style.height = Math.max(480, innerHeight - top - 16) + 'px'; };
+    requestAnimationFrame(fitHeight); if (!window.__dcFitH) { window.__dcFitH = true; addEventListener('resize', () => { const d = document.querySelector('.designer'); if (d && innerWidth > 1100) d.style.height = Math.max(480, innerHeight - d.getBoundingClientRect().top - 16) + 'px'; }); }
+    if (!document.getElementById('dc-zoom-css')) document.head.append(h('style', { id: 'dc-zoom-css' }, '.dc-zoom{position:sticky;bottom:0;display:flex;justify-content:flex-end;padding:4px 10px;margin-top:8px;background:var(--panel,#fff);border-top:1px solid var(--line,#ddd);z-index:5}'));
     requestAnimationFrame(applyZoom);
     const T = page.elements.find((e) => e.type === 'table');
     page.elements.forEach((el) => {
@@ -638,6 +680,7 @@
     };
     function renderProps() {
       props.textContent = '';
+      if (!props.__safe) { props.__safe = true; const append = props.append.bind(props); props.append = (...k) => append(...k.flat(Infinity).filter((x) => x != null && x !== false)); } // skip empty items (they would show as "null")
       const el = selEl();
       const set = (patch, full) => { Object.assign(el || page, patch); save(); if (full) rerender(); else redrawSel(); };
       const num = (label, key, step = 0.5, obj = el, min) => { const i = h('input', { class: 'input', type: 'number', step, min, value: round(obj[key]) }); i.onchange = () => { obj[key] = parseFloat(i.value) || 0; save(); rerender(); }; return h('label', { class: 'field' }, h('span', null, label), i); };

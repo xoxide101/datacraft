@@ -132,3 +132,9 @@ All built on 2026-10-13.
 ## Date and time
 
 Dates: `js/pages.js` has `DATE_FORMATS` and `dateDialog`. Text elements resolve `{Date:fmt}` (any format id, case-insensitive), `{Time}` and `{Now}` alongside `{Today}`; the "Date and time…" button inserts either the words or the field.
+
+## Zoom slider
+
+`zoomBar({ get, set, fit, min, max })` (own copy in this app) builds the status-bar zoom: slider positions 0–1000 map to min–100% on the left half and 100%–max on the right, so the middle is always 100% (it snaps there). + and − step through 10, 25, 33, 50, 67, 75, 90, 100, 110, 125, 150… It is marked `data-rt-skip` so the slider-typing helper leaves it alone (it has its own percent box).
+
+The page panel's `props.append` skips null/false items (they used to show as the word "null"), and the designer sets its height to fill the window under its header so the zoom bar stays in view.
