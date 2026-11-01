@@ -299,3 +299,12 @@ table.fields tfoot td { border-top: 2px solid var(--line); padding-top: 10px; }
   .project-name { display: none; }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+/* Start (the wizard): what do you want to do? */
+.start-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.start-tiles button { display: grid; gap: 4px; align-content: start; padding: 14px; text-align: left; border: 2px solid var(--line); border-radius: 12px; background: var(--panel-2); color: var(--fg); cursor: pointer; font: inherit; }
+.start-tiles button:hover:not(:disabled) { border-color: var(--accent); }
+.start-tiles button:disabled { opacity: .55; cursor: default; }
+.start-tiles b { font-size: 15px; }
+.start-tiles small { color: var(--muted); line-height: 1.35; }
+.start-show { margin-top: 14px; color: var(--muted); }

@@ -409,6 +409,33 @@
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', paintThemeButton);
   paintThemeButton();
 
+  // ---------- Start (the wizard): what do you want to do? ----------
+  const START_KEY = 'datacraft-start-show';
+  const showAtStart = () => { try { return localStorage.getItem(START_KEY) !== '0'; } catch (e) { return true; } };
+  function showStart() {
+    const curTable = () => (DC.state.view === 'table' ? { table: DC.state.id } : {});
+    const START = [
+      { title: 'New project', what: 'An empty database for your own tables', run: () => newProject() },
+      { title: 'Try the sample shop', what: 'Customers, products, invoices and ready-made pages to look at', run: () => newProject({ sample: true }) },
+      { title: 'Open one of my projects', what: 'The list of projects you made before', run: () => (DC.project ? closeProject() : DC.render()) },
+      { title: 'Open a .db file…', what: 'A SQLite database from somewhere else', run: openDbFile },
+      { title: 'Import text or CSV', what: 'A spreadsheet or text file into a table', run: () => DC.importWizard(curTable()), project: true },
+      { title: 'Invoice or report page', what: 'A printable page for one record or a list', run: () => DC.newPageDialog(), project: true },
+      { title: 'Bring in a MySQL .sql file', what: 'Tables and data from a MySQL or MariaDB export', run: () => DC.importMysqlDialog() },
+      { title: 'Make a PHP website', what: 'A website over this project’s tables', run: () => DC.phpSiteDialog(), project: true },
+      { title: 'Carry on', what: DC.project ? `Back to “${DC.project.name}”` : 'Back to the list of projects', run: () => {} },
+    ];
+    const show = h('input', { type: 'checkbox', checked: showAtStart(), onchange: () => { try { localStorage.setItem(START_KEY, show.checked ? '1' : '0'); } catch (e) { /* blocked */ } } });
+    const m = DC.modal({ title: 'What do you want to do?', wide: true, body: [
+      h('div', { class: 'start-tiles' }, START.map((t) => {
+        const off = t.project && !DC.project;
+        return h('button', { type: 'button', disabled: off, title: off ? 'Open or make a project first' : t.what, onclick: () => { m.close(); t.run(); } }, h('b', null, t.title), h('small', null, off ? 'Open or make a project first' : t.what));
+      })),
+      h('label', { class: 'check start-show' }, show, ' Show this when DataCraft opens'),
+    ], actions: [{ label: 'Close', primary: true }] });
+  }
+  DC.showStart = showStart;
+
   // Title bar at the very top (Office style) and the ribbon under it. The logo opens every menu;
   // the old menu bar is hidden. Shared CraftTitlebar / CraftRibbon (js/craft-titlebar.js).
   const LOGO = `<svg viewBox="0 0 40 40" aria-hidden="true"><defs><linearGradient id="dtc-g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1f8a5b"/><stop offset=".55" stop-color="#1f7a7f"/><stop offset="1" stop-color="#2563a8"/></linearGradient></defs><rect x="1" y="1" width="38" height="38" rx="11" fill="url(#dtc-g)"/><ellipse cx="18.5" cy="11.5" rx="9.5" ry="3.6" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M9 11.5v16c0 2 4.3 3.6 9.5 3.6S28 29.5 28 27.5v-16M9 19.5c0 2 4.3 3.6 9.5 3.6S28 21.5 28 19.5" stroke="#fff" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/><path d="M28.5 21.5l1.2 2.8 2.8 1.2-2.8 1.2-1.2 2.8-1.2-2.8-2.8-1.2 2.8-1.2Z" fill="#ffe066"/></svg>`;
@@ -426,6 +453,7 @@
       extraEls: [$('#nav-toggle')],
       tabs: [
         { id: 'home', label: 'Home', hue: '#1f8a5b', groups: [
+          ['Start', [B('Start', I.wand, showStart, { big: true, title: 'What do you want to do? New project, sample shop, import, pages, PHP website…' })]],
           ['Projects', [B('New project', I.newPage, () => newProject(), { big: true }), { col: [B('Open project', I.folder, () => closeProject()), B('Open a .db file', I.db, openDbFile), B('Create the sample shop', I.home, () => newProject({ sample: true }))] }]],
           ['This project', [B('Overview', I.home, () => DC.go({ view: 'home-project' }), { big: true, disabled: needP }), { col: [B('Settings', I.gear, settingsDialog, { disabled: needP }), B('Save a copy (.db)', I.save, saveCopy, { disabled: needP }), B('Close project', I.close, () => closeProject(), { disabled: needP })] }]],
         ] },
@@ -448,6 +476,7 @@
       appName: 'DataCraft', storageKey: 'datacraft', colors: ['#1f8a5b', '#2563a8'],
       mount: app, toast: DC.toast, logo: LOGO, menus: () => MENUS, ribbon,
       quick: [
+        { icon: 'wand', title: 'Start (wizard)', run: showStart },
         { icon: I.home, title: 'Overview of the project', run: () => (DC.project ? DC.go({ view: 'home-project' }) : DC.render()) },
         { icon: I.table, title: 'New table', run: newTable, disabled: needP },
         { icon: I.import, title: 'Import text or CSV', run: () => DC.importWizard(DC.state.view === 'table' ? { table: DC.state.id } : {}), disabled: needP },
@@ -481,6 +510,8 @@
     try { await DC.sqlReady(); } catch (e) { $('#main').textContent = 'The database engine could not start: ' + e.message; return; }
     await DC.store.init();
     DC.render();
+    // Greet with the start wizard once the projects folder is set up (it can be turned off on it).
+    if (DC.store.mode !== null && !DC.store.needsPermission && showAtStart()) showStart();
   }
   start();
 })(window.DC);
