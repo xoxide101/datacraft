@@ -17,14 +17,14 @@
   // a small window of its own (the apps' own dialogs differ), in the app's colours where it has them
   function dialog(title, html, buttons) {
     return new Promise((done) => {
-      const back = document.createElement('div'); back.style.cssText = 'position:fixed;inset:0;z-index:5000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.5)';
+      const back = document.createElement('div'); back.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;box-sizing:border-box;z-index:2147483100;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.5)';
       back.innerHTML = `<div role="dialog" aria-modal="true" aria-label="${title}" style="width:min(440px,100%);display:grid;gap:10px;padding:18px;border-radius:12px;border:1px solid var(--line,#555);background:var(--panel,#222);color:var(--fg,#eee);font:14px system-ui,sans-serif;box-shadow:0 12px 40px rgba(0,0,0,.4)">
         <b style="font-size:16px">${title}</b>${html}<div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap">${buttons.map(([v, l, main]) => `<button type="button" data-v="${v}" class="btn ${main ? 'primary' : 'outline'}" style="padding:6px 12px;border-radius:7px;cursor:pointer">${l}</button>`).join('')}</div></div>`;
       const finish = (v) => { const vals = {}; back.querySelectorAll('input').forEach((i) => { vals[i.name] = i.type === 'checkbox' ? i.checked : i.value; }); back.remove(); done(v === null ? null : { v, ...vals }); };
       back.addEventListener('click', (e) => { const b = e.target.closest('[data-v]'); if (b) finish(b.dataset.v); else if (e.target === back) finish(null); });
       back.addEventListener('keydown', (e) => { if (e.key === 'Escape') finish(null); if (e.key === 'Enter' && e.target.tagName === 'INPUT') finish(buttons.find((b) => b[2])[0]); });
       back.querySelectorAll('input').forEach((i) => { i.style.cssText = 'padding:7px 9px;border-radius:7px;border:1px solid var(--line,#555);background:var(--panel-2,#2a2a2a);color:inherit;font:inherit'; });
-      document.body.append(back); (back.querySelector('input:not([type=checkbox])') || back.querySelector('[data-v]')).focus();
+      (document.body || document.documentElement).append(back); (back.querySelector('input:not([type=checkbox])') || back.querySelector('[data-v]')).focus();
     });
   }
   const say = (t) => dialog(t, '', [['ok', 'OK', true]]);
@@ -69,7 +69,7 @@
   function share(o) { const s = shared(); for (const [k, v] of Object.entries(o.keys || {})) { if (v === '') delete s.keys[k]; else if (v) s.keys[k] = String(v).trim(); } if (o.workspace !== undefined) s.workspace = o.workspace; try { localStorage.setItem(SHARED, JSON.stringify(s)); } catch (e) { /* blocked */ } window.dispatchEvent(new CustomEvent('craft-keys')); return s; }
   // the AI keys window, the same in every app (onChange: the app's own copy of the keys follows)
   function open({ app = 'Craft', onChange } = {}) {
-    const back = document.createElement('div'); back.style.cssText = 'position:fixed;inset:0;z-index:4500;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.45)';
+    const back = document.createElement('div'); back.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;box-sizing:border-box;z-index:2147483000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.45)';
     const draw = () => { const s = shared();
       back.innerHTML = `<div role="dialog" aria-modal="true" aria-label="AI settings" style="width:min(560px,100%);max-height:calc(100vh - 40px);overflow:auto;display:grid;gap:10px;padding:18px;border-radius:12px;border:1px solid var(--line,#555);background:var(--panel,#222);color:var(--fg,#eee);font:14px system-ui,sans-serif">
         <div style="display:flex;align-items:center;gap:10px"><b style="font-size:16px;flex:1">AI settings</b><button type="button" data-a="close" class="btn outline">Close</button></div>
@@ -89,7 +89,7 @@
       if (a.dataset.a === 'forget') { const c = await dialog('Forget the keys?', '<p style="margin:0">Every Craft app in this browser forgets them. The keys stay valid at each company.</p>', [['cancel', 'Cancel'], ['yes', 'Forget them', true]]); if (!c || c.v !== 'yes') return; try { localStorage.removeItem(SHARED); localStorage.setItem('craft-ai-forget', String(Date.now())); } catch (err) { /* blocked */ } if (onChange) onChange({ keys: Object.fromEntries(PROVIDERS.map((k) => [k, ''])), workspace: '' }); window.dispatchEvent(new CustomEvent('craft-keys', { detail: { forget: true } })); draw(); out('Forgotten.'); }
     });
     back.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !document.querySelector('[role=dialog][aria-label="Save keys to a file"], [role=dialog][aria-label="Load keys"]')) back.remove(); });
-    draw(); document.body.append(back); back.querySelector('input').focus();
+    draw(); (document.body || document.documentElement).append(back); back.querySelector('input').focus();
   }
   // ------------------------------------------------------------------ activity (local and cloud AI) and debug
   // Apps tell what their AI did: CraftKeys.activity('local' | 'cloud', { what, model, ms, ok, sent, came }). The debug list
@@ -105,7 +105,7 @@
     // ImageCraft has its own windows for these
     const IC = window.IC; if (IC && IC.openLocalLog && IC.openCloudLog && IC.openDebug) { ({ local: IC.openLocalLog, cloud: IC.openCloudLog, debug: IC.openDebug })[tab](); return; }
     let back = document.querySelector('.craft-activity'); if (back) back.remove();
-    back = document.createElement('div'); back.className = 'craft-activity'; back.style.cssText = 'position:fixed;inset:0;z-index:4500;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.45)';
+    back = document.createElement('div'); back.className = 'craft-activity'; back.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;box-sizing:border-box;z-index:2147483000;display:grid;place-items:center;padding:20px;background:rgba(0,0,0,.45)';
     const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]), time = (t) => new Date(t).toLocaleTimeString();
     const row = (e) => (tab === 'debug' ? `<div style="padding:5px 0;border-bottom:1px solid var(--line,#444)"><small style="opacity:.7">${time(e.at)} · ${e.level}</small><pre style="margin:2px 0 0;white-space:pre-wrap;font:12px ui-monospace,monospace;color:${e.level === 'error' ? '#f87171' : 'inherit'}">${esc(e.text)}</pre></div>`
       : `<div style="padding:6px 0;border-bottom:1px solid var(--line,#444)"><b>${esc(e.what || 'AI')}</b> <small style="opacity:.75">${time(e.at)}${e.model ? ' · ' + esc(e.model) : ''}${e.ms != null ? ` · ${(e.ms / 1000).toFixed(1)} s` : ''} · ${e.ok === false ? '<span style="color:#f87171">failed</span>' : 'OK'}</small>${e.sent ? `<div style="font-size:12.5px;opacity:.85">Sent: ${esc(e.sent)}</div>` : ''}${e.came ? `<div style="font-size:12.5px">Came back: ${esc(e.came)}</div>` : ''}</div>`);
@@ -120,7 +120,7 @@
       if (e.target.closest('[data-a=clear]')) { ACT[tab].length = 0; draw(); window.dispatchEvent(new CustomEvent('craft-activity')); return; }
       const cp = e.target.closest('[data-a=copy]'); if (cp) { const text = ACT[tab].map((x) => `${new Date(x.at).toISOString()} ${tab === 'debug' ? x.level + ' ' + x.text : `${x.what || ''} ${x.model || ''} ${x.ms != null ? x.ms + 'ms' : ''} ${x.ok === false ? 'FAILED' : 'OK'} ${x.sent || ''} => ${x.came || ''}`}`).join('\n'); navigator.clipboard.writeText(text).then(() => { cp.textContent = 'Copied'; }); } });
     back.addEventListener('keydown', (e) => { if (e.key === 'Escape') shut(); });
-    window.addEventListener('craft-activity', draw); draw(); document.body.append(back); back.querySelector('[data-a=close]').focus();
+    window.addEventListener('craft-activity', draw); draw(); (document.body || document.documentElement).append(back); back.querySelector('[data-a=close]').focus();
   }
   // ------------------------------------------------------------------ working now: a light beside the computer (local AI)
   // and beside the cloud (cloud AI) while something is being worked out or sent. Apps call working('local' | 'cloud', true)
