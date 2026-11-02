@@ -122,6 +122,15 @@
     back.addEventListener('keydown', (e) => { if (e.key === 'Escape') shut(); });
     window.addEventListener('craft-activity', draw); draw(); document.body.append(back); back.querySelector('[data-a=close]').focus();
   }
+  // ------------------------------------------------------------------ working now: a light beside the computer (local AI)
+  // and beside the cloud (cloud AI) while something is being worked out or sent. Apps call working('local' | 'cloud', true)
+  // when they start and false when done (or track(where, promise)).
+  const WORK = { local: 0, cloud: 0 };
+  function working(where, on) { WORK[where] = Math.max(0, (WORK[where] || 0) + (on ? 1 : -1)); window.dispatchEvent(new CustomEvent('craft-working')); }
+  // (an app that counts its own running jobs just says how many)
+  function setWorking(where, n) { if ((WORK[where] || 0) === n) return; WORK[where] = Math.max(0, n); window.dispatchEvent(new CustomEvent('craft-working')); }
+  async function track(where, job) { working(where, true); try { return await (typeof job === 'function' ? job() : job); } finally { working(where, false); } }
+  if (!document.getElementById('craft-ai-anim')) { const st = document.createElement('style'); st.id = 'craft-ai-anim'; st.textContent = '@keyframes craftAiPulse { from { opacity: .35 } to { opacity: 1 } } .craft-ai-work.on { color: #22c55e; animation: craftAiPulse .6s ease-in-out infinite alternate; } .craft-ai-work[data-w=cloud].on { color: #38bdf8; }'; (document.head || document.documentElement).append(st); }
   // ------------------------------------------------------------------ the little switch in the title bar
   // computer (local only) · computer + cloud (both) · cloud, and a key that opens the AI settings. It puts itself just
   // before the title bar's search box in any Craft app that loads this file.
@@ -130,6 +139,7 @@
     both: '<rect x="1.5" y="7" width="11" height="8" rx="1.2"/><path d="M5 18h4M7 15v3"/><path d="M14 12.5h3.2a2.3 2.3 0 0 0 .3-4.6 3.2 3.2 0 0 0-6.1-.4" />',
     cloud: '<path d="M6 16h8.5a3.5 3.5 0 0 0 .5-7 4.8 4.8 0 0 0-9.2 1.2A2.9 2.9 0 0 0 6 16z"/>',
     key: '<circle cx="7" cy="12" r="3.2"/><path d="M10.2 12H18M15 12v2.8M17.5 12v2"/>',
+    data: '<path d="M7 15V5M4.5 7.5 7 5l2.5 2.5M13 5v10M10.5 12.5 13 15l2.5-2.5"/>',
     bug: '<rect x="6.5" y="7" width="7" height="9" rx="3.5"/><path d="M8 7a2 2 0 0 1 4 0M10 9.5V16M3.5 9.5l3 1.2M16.5 9.5l-3 1.2M3 13h3.5M17 13h-3.5M4 16.8l2.8-1.5M16 16.8l-2.8-1.5"/>',
   };
   const ico = (k) => `<svg viewBox="0 0 20 20" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[k]}</svg>`;
@@ -137,12 +147,15 @@
     const el = document.createElement('div'); el.className = small ? 'craft-ai-bottom' : 'ctb-ai'; el.setAttribute('role', 'group'); el.setAttribute('aria-label', 'Where AI runs');
     el.style.cssText = 'display:inline-flex;align-items:center;gap:1px;margin-right:8px;padding:2px;border-radius:8px;background:rgba(0,0,0,.18)';
     const paint = () => { const m = mode(), has = Object.keys(shared().keys).length;
-      el.innerHTML = MODES.map(([k, l, t]) => `<button type="button" data-mode="${k}" aria-pressed="${m === k}" title="${l}: ${t}" style="display:grid;place-items:center;width:28px;height:24px;border:0;border-radius:6px;cursor:pointer;color:inherit;background:${m === k ? 'rgba(255,255,255,.28)' : 'transparent'};opacity:${m === k ? 1 : 0.7}">${ico(k)}</button>`).join('')
+      const light = (w) => `<span class="craft-ai-work${WORK[w] ? ' on' : ''}" data-w="${w}" title="${w === 'local' ? 'The AI on this computer' : 'Cloud AI'}: ${WORK[w] ? 'working now' : 'idle'}" style="display:grid;place-items:center;width:16px;height:24px;opacity:${WORK[w] ? 1 : 0.3}">${ico('data').replace('width="17" height="17"', 'width="14" height="14"')}</span>`;
+      el.innerHTML = light('local') + MODES.map(([k, l, t]) => `<button type="button" data-mode="${k}" aria-pressed="${m === k}" title="${l}: ${t}" style="display:grid;place-items:center;width:28px;height:24px;border:0;border-radius:6px;cursor:pointer;color:inherit;background:${m === k ? 'rgba(255,255,255,.28)' : 'transparent'};opacity:${m === k ? 1 : 0.7}">${ico(k)}</button>`).join('') + light('cloud')
         + `<button type="button" data-keys title="AI settings: where AI runs and your cloud keys${has ? ` (${has} saved)` : ' (none saved yet)'}" style="display:grid;place-items:center;width:28px;height:24px;border:0;border-radius:6px;cursor:pointer;color:inherit;background:transparent;opacity:${has ? 1 : 0.7}">${ico('key')}</button>`
         + `<button type="button" data-activity title="Activity: what the AI here and in the cloud did, and the debug messages${hasErrors() ? ' (there are errors)' : ''}" style="position:relative;display:grid;place-items:center;width:28px;height:24px;border:0;border-radius:6px;cursor:pointer;color:inherit;background:transparent;opacity:.85">${ico('bug')}${hasErrors() ? '<i style="position:absolute;top:3px;right:4px;width:6px;height:6px;border-radius:50%;background:#ef4444"></i>' : ''}</button>`;
       if (small) { el.style.cssText = 'display:inline-flex;align-items:center;gap:1px;margin-left:auto;padding:1px;border-radius:7px;background:rgba(127,127,127,.12)'; if (document.getElementById('st-aimode')) el.querySelectorAll('[data-mode]').forEach((b) => { b.hidden = true; }); } el._dot = hasErrors(); };
     el.addEventListener('click', (e) => { const b = e.target.closest('[data-mode]'); if (b) { setMode(b.dataset.mode); return; } if (e.target.closest('[data-keys]')) open({ app: document.title.split(/[–—-]/)[0].trim() || 'Craft' }); if (e.target.closest('[data-activity]')) openActivity(hasErrors() ? 'debug' : 'local'); });
-    window.addEventListener('craft-keys', paint); window.addEventListener('craft-activity', () => { if (hasErrors() !== el._dot) paint(); }); window.addEventListener('storage', (e) => { if (e.key === MODE || e.key === SHARED) paint(); });
+    window.addEventListener('craft-keys', paint); window.addEventListener('craft-activity', () => { if (hasErrors() !== el._dot) paint(); });
+    // the two lights only (not the whole switch) as work starts and stops
+    window.addEventListener('craft-working', () => { el.querySelectorAll('.craft-ai-work').forEach((w) => { const on = !!WORK[w.dataset.w]; w.classList.toggle('on', on); w.style.opacity = on ? 1 : 0.3; w.title = `${w.dataset.w === 'local' ? 'The AI on this computer' : 'Cloud AI'}: ${on ? 'working now' : 'idle'}`; }); }); window.addEventListener('storage', (e) => { if (e.key === MODE || e.key === SHARED) paint(); });
     paint(); return el;
   }
   // at the top (before the title bar's search box) and at the bottom (the end of the status bar; put back when the app
@@ -156,5 +169,5 @@
   // a change in another tab or app (same browser) shows here too
   // (forgetting in another app or tab: every app forgets its own copy too)
   window.addEventListener('storage', (e) => { if (e.key === MODE || e.key === SHARED) window.dispatchEvent(new CustomEvent('craft-keys')); if (e.key === 'craft-ai-forget') window.dispatchEvent(new CustomEvent('craft-keys', { detail: { forget: true } })); });
-  window.CraftKeys = { save, load, shared, share, open, mode, setMode, activity, openActivity, PROVIDERS, NAMES };
+  window.CraftKeys = { save, load, shared, share, open, mode, setMode, activity, openActivity, working, track, setWorking, PROVIDERS, NAMES };
 })();
