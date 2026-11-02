@@ -189,6 +189,7 @@
       if (f.fit === 'tile') el.append(range('Tile width', f.size || (unit === 'px' ? 120 : 20), 3, unit === 'px' ? 1200 : 200, (v) => v + ' ' + unit, (v) => set({ size: v })));
       el.append(range('Picture strength', Math.round((f.opacity ?? 1) * 100), 5, 100, (v) => v + '%', (v) => set({ opacity: v / 100 })));
       el.append(mk('button', { type: 'button', className: 'pp-btn', textContent: 'Choose another picture…', onclick: async () => { const src = await choose(); if (src) set({ src }); } }));
+      if (window.CraftClipartPicker) el.append(mk('button', { type: 'button', className: 'pp-btn', textContent: 'Clip art…', onclick: () => CraftClipartPicker.open({ app: 'DataCraft', svg: false, onPick: (p) => { const r = new FileReader(); r.onload = () => set({ src: r.result }); r.readAsDataURL(p.file); } }) }));
     }
     return el;
   }
@@ -940,7 +941,9 @@
           if (f.size > 3e6) { DC.toast('Pick an image under 3 MB.'); return; }
           const r = new FileReader(); r.onload = () => set({ src: r.result }, true); r.readAsDataURL(f);
         } });
-        props.append(fileIn, h('button', { class: 'btn', onclick: () => fileIn.click() }, el.src ? 'Replace image…' : 'Choose image…'),
+        // (clip art from the library: the picture comes in as a data URL like a chosen file)
+        const fromClip = () => window.CraftClipartPicker && CraftClipartPicker.open({ app: 'DataCraft', onPick: (p) => { const r = new FileReader(); r.onload = () => set({ src: r.result }, true); r.readAsDataURL(p.file); } });
+        props.append(fileIn, h('button', { class: 'btn', onclick: () => fileIn.click() }, el.src ? 'Replace image…' : 'Choose image…'), h('button', { class: 'btn', onclick: fromClip }, 'Clip art…'),
           sel('Fit', el.fit, [['contain', 'Fit inside the box'], ['cover', 'Fill the box (may crop)']], (v) => set({ fit: v }, true)));
         if (el.src) {
           const f = el.fx || { mode: 'original', c1: '#000000', c2: '#3f8be8', angle: 90, amount: 0.6 }, fx = (patch) => set({ fx: { ...f, ...patch } }, true);
