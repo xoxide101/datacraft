@@ -25,8 +25,10 @@
     for (const u of tries) if (await answers(u)) return u;
     return '';
   }
-  async function serverItems(u, q, category, offset) { const r = await fetch(`${u}/api/items?limit=120&offset=${offset || 0}&q=${encodeURIComponent(q || '')}${category ? `&category=${encodeURIComponent(category)}` : ''}`); if (!r.ok) throw new Error('The server did not answer.'); return r.json(); }
-  async function serverCats(u) { try { return (await (await fetch(u + '/api/categories')).json()).filter((c) => c.category); } catch (e) { return []; } }
+  // the key ClipArtCraft is connected with (kept in the shared library), sent to that same server: pictures only for me show too
+  async function keyFor(u) { try { if (tidy(await read('meta', 'server')) === tidy(u)) { const k = await read('meta', 'serverKey'); if (k) return { headers: { 'x-craft-key': k } }; } } catch (e) { /* no library yet */ } return {}; }
+  async function serverItems(u, q, category, offset) { const r = await fetch(`${u}/api/items?limit=120&offset=${offset || 0}&q=${encodeURIComponent(q || '')}${category ? `&category=${encodeURIComponent(category)}` : ''}`, await keyFor(u)); if (!r.ok) throw new Error('The server did not answer.'); return r.json(); }
+  async function serverCats(u) { try { return (await (await fetch(u + '/api/categories', await keyFor(u))).json()).filter((c) => c.category); } catch (e) { return []; } }
 
   // ------------------------------------------------------------------ the window
   function open({ app = 'Craft', svg: takesSvg = true, onPick } = {}) {
