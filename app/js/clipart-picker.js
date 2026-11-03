@@ -14,6 +14,8 @@
   // ------------------------------------------------------------------ this browser's library (read only)
   let dbp = null;
   const db = () => (dbp = dbp || new Promise((ok, no) => { const r = indexedDB.open('craft-clipart', 1); r.onupgradeneeded = () => { const d = r.result; if (!d.objectStoreNames.contains('items')) d.createObjectStore('items', { keyPath: 'id' }); if (!d.objectStoreNames.contains('meta')) d.createObjectStore('meta'); }; r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+  // this browser's own pictures only (big sets are kept in books, ids starting "!": browsed on the server instead)
+  const readMain = async () => { const d = await db(); return new Promise((ok, no) => { const q = d.transaction('items', 'readonly').objectStore('items').getAll(IDBKeyRange.lowerBound('"')); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); };
   const read = async (store, key) => { const d = await db(); return new Promise((ok, no) => { const t = d.transaction(store, 'readonly'), s = t.objectStore(store), q = key === undefined ? s.getAll() : s.get(key); q.onsuccess = () => ok(q.result); q.onerror = () => no(q.error); }); };
   // ------------------------------------------------------------------ the server
   const tidy = (u) => String(u || '').trim().replace(/\/+$/, '');
@@ -61,7 +63,7 @@
         const r = await serverItems(server, q, cat, more ? items.length : 0), got = r.items.map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: (it.links || {}).thumb || (it.links || {}).png, pngUrl: (it.links || {}).png, svgUrl: (it.links || {}).svg, hasSvg: !!(it.links || {}).svg, from: it.source || '' }));
         got.forEach((it) => { it.subject = subjectOf(it); }); items = more ? [...items, ...got] : got; total = r.total;
       } else {
-        localAll = localAll || (await read('items')).filter((it) => it.png || it.svg || it.links).map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: it.thumb, item: it, hasSvg: !!it.svg, from: it.collection || it.sheet || it.source || '' }));
+        localAll = localAll || (await readMain()).filter((it) => it.png || it.svg || it.links).map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: it.thumb, item: it, hasSvg: !!it.svg, from: it.collection || it.sheet || it.source || '' }));
         const words = q.toLowerCase().split(/\s+/).filter(Boolean);
         items = localAll.filter((it) => (!cat || it.category === cat) && words.every((w) => [it.name, it.category, it.style, it.tags.join(' ')].join(' ').toLowerCase().includes(w))).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
         items.forEach((it) => { it.subject = subjectOf(it); }); total = items.length;
