@@ -61,7 +61,7 @@
         const r = await serverItems(server, q, cat, more ? items.length : 0), got = r.items.map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: (it.links || {}).thumb || (it.links || {}).png, pngUrl: (it.links || {}).png, svgUrl: (it.links || {}).svg, hasSvg: !!(it.links || {}).svg, from: it.source || '' }));
         got.forEach((it) => { it.subject = subjectOf(it); }); items = more ? [...items, ...got] : got; total = r.total;
       } else {
-        localAll = localAll || (await read('items')).filter((it) => it.png || it.svg).map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: it.thumb, item: it, hasSvg: !!it.svg, from: it.collection || it.sheet || it.source || '' }));
+        localAll = localAll || (await read('items')).filter((it) => it.png || it.svg || it.links).map((it) => ({ name: it.name, category: it.category, style: it.style, tags: it.tags || [], width: it.width, height: it.height, original: it.original, thumbUrl: it.thumb, item: it, hasSvg: !!it.svg, from: it.collection || it.sheet || it.source || '' }));
         const words = q.toLowerCase().split(/\s+/).filter(Boolean);
         items = localAll.filter((it) => (!cat || it.category === cat) && words.every((w) => [it.name, it.category, it.style, it.tags.join(' ')].join(' ').toLowerCase().includes(w))).sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
         items.forEach((it) => { it.subject = subjectOf(it); }); total = items.length;
@@ -80,7 +80,7 @@
       if (!chosen) return; const b = $('[data-a=insert]'); b.disabled = true; b.textContent = 'Getting it…';
       try {
         let png = null, svg = null;
-        if (chosen.item) { png = chosen.item.png || null; svg = chosen.item.svg || null; }
+        if (chosen.item) { png = chosen.item.png || null; svg = chosen.item.svg || null; const l = chosen.item.links || {}; if (!png && !svg) { if (l.png) png = await (await fetch(l.png)).blob(); if (takesSvg && l.svg) { try { const r = await fetch(l.svg); if (r.ok) svg = await r.text(); } catch (e) { /* the PNG will do */ } } } } // (one here as its data only: its files from the server)
         else { if (chosen.pngUrl) png = await (await fetch(chosen.pngUrl)).blob(); if (takesSvg && chosen.svgUrl) { try { const r = await fetch(chosen.svgUrl); if (r.ok) svg = await r.text(); } catch (e) { /* the PNG will do */ } } }
         const safe = chosen.name.replace(/[\\/:*?"<>|]+/g, '-'), file = takesSvg && svg ? new File([svg], safe + '.svg', { type: 'image/svg+xml' }) : new File([png], safe + '.png', { type: 'image/png' });
         shut(); onPick && onPick({ name: chosen.name, file, png, svg, width: chosen.width, height: chosen.height, category: chosen.category, style: chosen.style, tags: chosen.tags });
