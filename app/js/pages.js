@@ -501,6 +501,8 @@
       return v == null ? `<span class="unknown">${m}</span>` : esc(v);
     });
   }
+  // {fields} filled in as plain text (for barcodes); unknown fields stay as typed
+  const plainFill = (text, ctx, info) => String(text || '').replace(/\{([^{}]+)\}/g, (m, tok) => { const v = ctx ? resolve(tok, ctx, info) : null; return v == null ? m : String(v); });
   const designText = (text) => esc(text).replace(/\{([^{}]+)\}/g, '<span class="ph">{$1}</span>');
 
   // ---------- Element DOM ----------
@@ -518,6 +520,13 @@
       if (el.valign === 'middle') Object.assign(d.style, { display: 'flex', flexDirection: 'column', justifyContent: 'center' });
       const inner = design ? designText(el.text) : fillText(el.text, ctx, info);
       d.innerHTML = el.valign === 'middle' ? `<div>${inner}</div>` : inner;
+    } else if (el.type === 'barcode') {
+      // A barcode or QR code (BarcodeCraft's core); its value can hold {fields}, so every record gets its own code.
+      const v = plainFill(el.value, ctx, info);
+      let m = null, err = '';
+      if (window.CraftBarcode && v.trim()) { try { m = CraftBarcode.make({ type: el.code || 'QRCODE', value: v, wmm: el.w, hmm: el.h, text: el.text !== false }); } catch (e) { err = (e && e.message) || String(e); } }
+      if (m) d.append(h('img', { src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m.svg), alt: v, style: { width: '100%', height: '100%', objectFit: 'contain', display: 'block' } }));
+      else if (design || err) d.append(h('span', { class: 'ph-box' }, err ? 'Barcode: ' + err : 'Barcode'));
     } else if (el.type === 'image') {
       if (el.src && el.fx && el.fx.mode !== 'original') d.append(fxLayer(el));
       else if (el.src) d.append(h('img', { src: el.src, alt: '', style: { objectFit: el.fit || 'contain' } }));
@@ -787,6 +796,7 @@
       h('span', { class: 'label' }, 'Add'),
       tool('Text', 'A text box. Type fixed text and {fields}.', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 8, text: 'New text', size: 10, align: 'left', font: 'sans', color: '#000000' })),
       tool('Image / logo', 'A picture from your computer', () => addEl({ type: 'image', x: M, y: M, w: 40, h: 20, src: '', fit: 'contain' })),
+      window.CraftBarcode ? tool('Barcode', 'A barcode or QR code (BarcodeCraft). Its value can use {fields}, so each record gets its own code', () => addEl({ type: 'barcode', x: M, y: M, w: 30, h: 30, code: 'QRCODE', value: phs.length ? `{${phs[0]}}` : 'https://example.com', text: true })) : null,
       tool('Line', 'A horizontal line', () => addEl({ type: 'line', x: M, y: M + 60, w: W - 2 * M, h: 2, thick: 0.3, color: '#000000' })),
       tool('Symbol / emoji', 'A dingbat, knitting symbol or emoji you can size and colour like text', () => CraftSymbols.open({ onPick: (r) => addEl({ type: 'text', x: M, y: M + 40, w: 20, h: 20, text: r.char, size: 36, align: 'center', font: r.font || (r.kind === 'emoji' ? 'sans' : 'Noto Sans Symbols 2'), color: '#000000', valign: 'middle' }) })),
       tool('Text box', 'Words in a box that wrap, with a border, background, padding and shadow', () => addEl({ type: 'text', x: M, y: M + 40, w: 70, h: 25, text: 'Type here. Words wrap inside the box.', size: 10, align: 'left', font: 'sans', color: '#000000', border: 0.3, stroke: '#000000', pad: 2, round: 0 })),
@@ -895,7 +905,7 @@
         updatePos = () => {};
         return;
       }
-      const names = { text: el.border || el.pad != null ? 'Text box' : 'Text', image: 'Image', line: 'Line', box: 'Shape', table: 'Table' };
+      const names = { text: el.border || el.pad != null ? 'Text box' : 'Text', image: 'Image', barcode: 'Barcode', line: 'Line', box: 'Shape', table: 'Table' };
       const pos = h('div', { class: 'row4' }, num('X mm', 'x'), num('Y mm', 'y'), num('Width', 'w', 0.5, el, 1), num(el.type === 'table' ? 'Height (per page)' : 'Height', 'h', 0.5, el, 1));
       updatePos = () => { const ins = pos.querySelectorAll('input'); ['x', 'y', 'w', 'h'].forEach((k, i) => { ins[i].value = round(el[k]); }); };
       props.append(h('h3', null, names[el.type]), pos);
@@ -935,6 +945,20 @@
           h('div', { class: 'row2' },
             h('label', { class: 'field' }, h('span', null, 'Colour'), h('input', { class: 'input', type: 'color', value: el.color || '#000000', oninput: (e) => set({ color: e.target.value }) }))));
         props.append(...boxLook(el, set, num, sel));
+      } else if (el.type === 'barcode') {
+        const KINDS = window.CraftBarcode ? CraftBarcode.TYPES : [], kind = KINDS.find((x) => x.id === (el.code || 'QRCODE'));
+        const val = h('input', { class: 'input', value: el.value || '' });
+        val.oninput = () => { el.value = val.value; save(); redrawSel(); };
+        const insF = h('select', { class: 'input', onchange: () => {
+          if (!insF.value) return;
+          const tok = `{${insF.value}}`, a = val.selectionStart ?? val.value.length, b = val.selectionEnd ?? a;
+          val.value = val.value.slice(0, a) + tok + val.value.slice(b); el.value = val.value; save(); redrawSel(); insF.value = '';
+        } }, h('option', { value: '' }, 'Insert a field…'), placeholders(page).map((p) => h('option', { value: p }, p)));
+        props.append(sel('Kind', el.code || 'QRCODE', KINDS.map((x) => [x.id, x.name]), (v) => set({ code: v }, true)),
+          h('label', { class: 'field' }, h('span', null, 'Value (fixed words and {fields})'), val), insF,
+          kind && kind.kind !== '2d' ? h('label', { class: 'check' }, h('input', { type: 'checkbox', checked: el.text !== false, onchange: (e) => set({ text: e.target.checked }, true) }), ' Show the numbers under it') : null,
+          h('button', { class: 'btn outline', type: 'button', title: 'Take the kind, value and size of a saved barcode (or make one there)', onclick: () => CraftBarcode.open({ app: 'DataCraft', title: 'Barcode from BarcodeCraft', insertLabel: 'Use this', onInsert: (m) => set({ code: m.type, value: m.value, w: m.wmm, h: m.hmm }, true) }) }, 'From the barcode library…'),
+          h('p', { class: 'hint' }, 'Each record gets its own code: put fields in {curly brackets}, for example {SKU}, or a web address with {ID} in it. The same 71 kinds as BarcodeCraft.'));
       } else if (el.type === 'image') {
         const fileIn = h('input', { type: 'file', accept: 'image/*', hidden: true, onchange: () => {
           const f = fileIn.files[0]; if (!f) return;
@@ -943,7 +967,9 @@
         } });
         // (clip art from the library: the picture comes in as a data URL like a chosen file)
         const fromClip = () => window.CraftClipartPicker && CraftClipartPicker.open({ app: 'DataCraft', onPick: (p) => { const r = new FileReader(); r.onload = () => set({ src: r.result }, true); r.readAsDataURL(p.file); } });
-        props.append(fileIn, h('button', { class: 'btn', onclick: () => fileIn.click() }, el.src ? 'Replace image…' : 'Choose image…'), h('button', { class: 'btn', onclick: fromClip }, 'Clip art…'),
+        // (a barcode or QR code from BarcodeCraft's window: an SVG picture, sharp at any size, fitted inside the box)
+        const fromBarcode = () => window.CraftBarcode && CraftBarcode.open({ app: 'DataCraft', title: 'Barcode from BarcodeCraft', onInsert: (m) => set({ src: 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(m.svg), fit: 'contain' }, true) });
+        props.append(fileIn, h('button', { class: 'btn', onclick: () => fileIn.click() }, el.src ? 'Replace image…' : 'Choose image…'), h('button', { class: 'btn', onclick: fromClip }, 'Clip art…'), window.CraftBarcode ? h('button', { class: 'btn', title: 'A barcode or QR code from BarcodeCraft (your saved ones or a new one)', onclick: fromBarcode }, 'Barcode…') : null,
           sel('Fit', el.fit, [['contain', 'Fit inside the box'], ['cover', 'Fill the box (may crop)']], (v) => set({ fit: v }, true)));
         if (el.src) {
           const f = el.fx || { mode: 'original', c1: '#000000', c2: '#3f8be8', angle: 90, amount: 0.6 }, fx = (patch) => set({ fx: { ...f, ...patch } }, true);
