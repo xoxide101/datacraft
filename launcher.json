@@ -5,5 +5,6 @@
  "group": "Data, AI and building",
  "order": 10,
  "entry": "app/index.html",
- "status": "beta"
+ "status": "beta",
+ "shot": "launcher.png"
 }

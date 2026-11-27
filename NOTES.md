@@ -165,3 +165,8 @@ The wand in the title bar's quick buttons and the Start button, first on the Hom
 - **Barcode element on pages** (toolbox › Barcode): a barcode or QR code drawn by BarcodeCraft's core (`app/js/craft-barcode.js`, its own copy, with `app/lib/bwip-js-min.js` and `app/lib/qrcode.min.js`). Its value takes fixed words and `{fields}` (`plainFill`: fields filled in as plain text), so every record gets its own code on Preview, Print this and Print all: for example `{SKU}`, or `https://example.com/customer/{ID}`. Kind (all 71), Show the numbers under it (linear codes), and From the barcode library… (takes a saved barcode's kind, value and size). Drawn as an SVG picture fitted in its box, so it prints sharp. Element: `{ type: 'barcode', code, value, text, x, y, w, h }`.
 - **Image boxes**: Barcode… next to Clip art… puts a saved or new barcode in as an SVG picture.
 - Tested (real clicks, sample shop): Customer sheet with `https://example.com/customer/{Name}` showed each customer's own code in Design and Preview, record by record.
+
+## 2026-11-27: the Craft Hub
+- launcher.json: this app's card in the Craft Hub (the launcher at /craft/: an expanding pie of every app, read from each folder's launcher.json); launcher.png: its picture there
+- The Craft rail (the bar down the left) has the Craft Hub at the top, back to /craft/ from any page
+- See every app: https://github.com/xoxide101
