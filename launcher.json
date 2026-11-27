@@ -1,0 +1,9 @@
+{
+ "name": "DataCraft",
+ "icon": "🗄",
+ "about": "Databases and the sites made from them (Access / PHPMaker style)",
+ "group": "Data, AI and building",
+ "order": 10,
+ "entry": "app/index.html",
+ "status": "beta"
+}
